@@ -32,6 +32,14 @@ ANALYSIS_SCHEMA = {
             "type": "string",
             "description": "Tên ứng viên trích từ CV"
         },
+        "candidate_email": {
+            "type": "string",
+            "description": "Địa chỉ email ứng viên trích từ CV, để trống nếu không tìm thấy"
+        },
+        "candidate_phone": {
+            "type": "string",
+            "description": "Số điện thoại ứng viên trích từ CV, để trống nếu không tìm thấy"
+        },
         "overall_score": {
             "type": "integer",
             "description": "Điểm tổng phù hợp 0-100"
@@ -106,7 +114,7 @@ ANALYSIS_SCHEMA = {
         }
     },
     "required": [
-        "candidate_name", "overall_score", "classification",
+        "candidate_name", "candidate_email", "candidate_phone", "overall_score", "classification",
         "skills_analysis", "experience_analysis", "education_analysis",
         "language_analysis", "strengths", "weaknesses",
         "interview_questions", "summary"
@@ -175,15 +183,17 @@ def analyze_single_cv(client: genai.Client, cv_path: str, jd_text: str, rubric: 
 ## Tiêu chí chấm điểm:
 {rubric if rubric else "Dùng tiêu chí mặc định: Kỹ năng (35%), Kinh nghiệm (30%), Học vấn (20%), Ngôn ngữ (15%)"}
 
-## Yêu cầu:
-1. Đọc kỹ CV đính kèm (file: {cv_filename})
-2. So sánh CV với JD
-3. Chấm điểm từng hạng mục (0-100)
-4. Tính điểm tổng theo trọng số
-5. Xếp loại: pass (>=70), potential (50-69), fail (<50)
-6. Liệt kê điểm mạnh, điểm yếu
-7. Gợi ý 5 câu hỏi phỏng vấn bằng tiếng Việt
-8. Viết tóm tắt đánh giá bằng tiếng Việt
+## Yêu cầu BẮT BUỘC:
+1. Đọc kỹ CV đính kèm (file: {cv_filename}), bao gồm phần Header và thông tin liên hệ.
+2. Trích xuất tên ứng viên (candidate_name).
+3. BẮT BUỘC trích xuất chính xác email ứng viên (candidate_email) nếu có trong CV, nếu không tìm thấy để chuỗi rỗng "".
+4. BẮT BUỘC trích xuất chính xác số điện thoại ứng viên (candidate_phone) nếu có trong CV (ví dụ: 0385 591 447, 0365472162, +84...), nếu không tìm thấy để chuỗi rỗng "".
+5. So sánh CV với JD và chấm điểm từng hạng mục (0-100).
+6. Tính điểm tổng theo trọng số.
+7. Xếp loại: pass (>=70), potential (50-69), fail (<50).
+8. Liệt kê điểm mạnh, điểm yếu.
+9. Gợi ý 5 câu hỏi phỏng vấn bằng tiếng Việt.
+10. Viết tóm tắt đánh giá bằng tiếng Việt.
 
 Trả lời bằng tiếng Việt. Hãy khách quan và chi tiết."""
 
@@ -209,6 +219,8 @@ Trả lời bằng tiếng Việt. Hãy khách quan và chi tiết."""
         print(f"   Raw response: {response.text[:500]}")
         return {
             "candidate_name": "Unknown",
+            "candidate_email": "",
+            "candidate_phone": "",
             "cv_file": cv_filename,
             "overall_score": 0,
             "classification": "fail",
@@ -228,9 +240,16 @@ def format_single_result(result: dict) -> str:
     }
     cls = classification_map.get(result.get("classification", "fail"), "❓ Không xác định")
 
+    contact_info = []
+    if result.get("candidate_email"):
+        contact_info.append(f"📧 **Email**: {result['candidate_email']}")
+    if result.get("candidate_phone"):
+        contact_info.append(f"📱 **SĐT**: {result['candidate_phone']}")
+    contact_line = ("\n" + " | ".join(contact_info)) if contact_info else ""
+
     output = f"""
 ## 📋 Kết quả phân tích CV: {result.get('candidate_name', 'N/A')}
-**File**: {result.get('cv_file', 'N/A')}
+**File**: {result.get('cv_file', 'N/A')}{contact_line}
 
 ### 🎯 Điểm tổng: {result.get('overall_score', 0)}/100 — {cls}
 
@@ -282,8 +301,24 @@ def format_batch_results(results: list) -> str:
     sorted_results = sorted(results, key=lambda x: x.get("overall_score", 0), reverse=True)
 
     output = "## 📊 Bảng xếp hạng ứng viên\n\n"
-    output += "| # | Ứng viên | File CV | Điểm | Xếp loại | Kỹ năng | Kinh nghiệm | Học vấn | Ngôn ngữ |\n"
-    output += "|---|----------|---------|------|----------|---------|-------------|---------|----------|\n"
+    output += "| # | Ứng viên | Email / SĐT | File CV | Điểm | Xếp loại | Kỹ năng | Kinh nghiệm | Học vấn | Ngôn ngữ |\n"
+    output += "|---|----------|-------------|---------|------|----------|---------|-------------|---------|----------|\n"
+
+    for i, r in enumerate(sorted_results, 1):
+        cls = classification_map.get(r.get("classification", "fail"), "❓")
+        contacts = []
+        if r.get("candidate_email"):
+            contacts.append(r["candidate_email"])
+        if r.get("candidate_phone"):
+            contacts.append(r["candidate_phone"])
+        contact_str = "<br>".join(contacts) if contacts else "N/A"
+
+        output += f"| {i} | {r.get('candidate_name', 'N/A')} | {contact_str} | {r.get('cv_file', 'N/A')} | **{r.get('overall_score', 0)}** | {cls} | {r.get('skills_analysis', {}).get('score', 0)} | {r.get('experience_analysis', {}).get('score', 0)} | {r.get('education_analysis', {}).get('score', 0)} | {r.get('language_analysis', {}).get('score', 0)} |\n"
+
+    output += f"\n**Tổng cộng**: {len(results)} ứng viên\n"
+    output += f"- ✅ Đạt: {sum(1 for r in results if r.get('classification') == 'pass')}\n"
+    output += f"- ⚠️ Tiềm năng: {sum(1 for r in results if r.get('classification') == 'potential')}\n"
+    output += f"- ❌ Không đạt: {sum(1 for r in results if r.get('classification') == 'fail')}\n"
 
     for i, r in enumerate(sorted_results, 1):
         cls = classification_map.get(r.get("classification", "fail"), "❓")

@@ -43,3 +43,9 @@ Danh sách chi tiết công việc triển khai cho tính năng **HR CV Screenin
 - [x] **TSK-23**: Áp dụng thiết kế chuẩn Dark mode Glassmorphism, hiệu ứng chuyển trang mượt mà
 - [x] **TSK-24**: Xử lý trạng thái Loading Skeleton, progress bar hiển thị phần trăm khi AI đang phân tích
 - [x] **TSK-25**: Kiểm thử lệnh Build Production (`npm run build`) đạt trạng thái 100% Clean Build
+
+### 2.5 Excel Reporting, JD Tracking & Quota Optimization
+- [x] **TSK-26**: Tích hợp `exceljs` và xây dựng module `src/lib/excelExport.ts` định dạng bảng tính cao cấp, border tinh tế, màu sắc xếp loại, sheet tóm tắt JD.
+- [x] **TSK-27**: Nâng cấp `StoredAnalysis` trong `src/lib/localStorage.ts` hỗ trợ lưu `jdTitle`, `jdSummary`, `jdText` và cập nhật file CSV.
+- [x] **TSK-28**: Tối ưu hóa AI Quota theo chiến lược Text-First (`src/lib/gemini.ts`) giúp giảm 60-80% token tiêu thụ khi gọi Gemini 2.5 Flash.
+- [x] **TSK-29**: Cập nhật toàn diện giao diện (`/analyze`, `/analyze/batch`, `/history`) tích hợp nút Xuất Excel/CSV và hiển thị tag JD.

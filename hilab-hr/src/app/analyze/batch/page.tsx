@@ -1,23 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { 
-  Files, 
-  UploadCloud, 
-  FileText, 
-  Sparkles, 
-  AlertCircle, 
-  Loader2, 
-  CheckCircle2, 
-  AlertTriangle, 
+import React, { useState } from "react";
+import {
+  Files,
+  UploadCloud,
+  FileText,
+  Sparkles,
+  AlertCircle,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
   XCircle,
   Zap,
   Trash2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Download
 } from "lucide-react";
 import { CVAnalysisResult } from "@/lib/gemini";
 import { AnalysisResultView } from "@/components/AnalysisResultView";
+import { saveAnalysis, exportAnalysesToCSV, getAnalyses, StoredAnalysis } from "@/lib/localStorage";
+import { exportAnalysesToExcel } from "@/lib/excelExport";
 
 const SAMPLE_JD = `Vị trí: Senior Frontend Developer
 Yêu cầu: React.js, Next.js, TypeScript, Tailwind CSS, REST API, > 3 năm kinh nghiệm. Tiếng Anh khá.`;
@@ -28,6 +31,7 @@ export default function BatchAnalyzePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Array<CVAnalysisResult & { cvFileName: string }>>([]);
+  const [savedEntries, setSavedEntries] = useState<StoredAnalysis[]>([]);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,7 +55,6 @@ export default function BatchAnalyzePage() {
     }
   };
 
-
   const handleRemoveFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
@@ -70,6 +73,7 @@ export default function BatchAnalyzePage() {
     setLoading(true);
     setError(null);
     setResults([]);
+    setSavedEntries([]);
 
     try {
       const formData = new FormData();
@@ -86,7 +90,16 @@ export default function BatchAnalyzePage() {
         throw new Error(data.error || "Phân tích hàng loạt thất bại.");
       }
 
-      setResults(data.data || []);
+      const analysisResults: Array<CVAnalysisResult & { cvFileName: string }> = data.data || [];
+      setResults(analysisResults);
+
+      // Auto-save all results to localStorage with JD metadata
+      const entries: StoredAnalysis[] = [];
+      for (const item of analysisResults) {
+        const entry = saveAnalysis(item, item.cvFileName, jd);
+        entries.push(entry);
+      }
+      setSavedEntries(entries);
     } catch (err: any) {
       setError(err.message || "Đã xảy ra lỗi khi gọi Gemini API.");
     } finally {
@@ -94,14 +107,49 @@ export default function BatchAnalyzePage() {
     }
   };
 
+  const handleExportExcelBatch = async () => {
+    // Export this current batch's results (or all if empty)
+    if (savedEntries.length > 0) {
+      await exportAnalysesToExcel(savedEntries, jd);
+    } else {
+      const allAnalyses = getAnalyses();
+      if (allAnalyses.length > 0) {
+        await exportAnalysesToExcel(allAnalyses, jd);
+      }
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (savedEntries.length > 0) {
+      exportAnalysesToCSV(savedEntries);
+    } else {
+      const allAnalyses = getAnalyses();
+      if (allAnalyses.length > 0) {
+        exportAnalysesToCSV(allAnalyses);
+      }
+    }
+  };
+
   const getBadge = (cls: string) => {
     switch (cls) {
       case "pass":
-        return <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold text-xs">✅ Đạt</span>;
+        return (
+          <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold text-xs">
+            ✅ Đạt
+          </span>
+        );
       case "potential":
-        return <span className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold text-xs">⚠️ Tiềm năng</span>;
+        return (
+          <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold text-xs">
+            ⚠️ Tiềm năng
+          </span>
+        );
       default:
-        return <span className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold text-xs">❌ Không đạt</span>;
+        return (
+          <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold text-xs">
+            ❌ Không đạt
+          </span>
+        );
     }
   };
 
@@ -232,8 +280,37 @@ export default function BatchAnalyzePage() {
       {/* Results Table */}
       {results.length > 0 && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white">Bảng Xếp Hạng Ranking ({results.length} Ứng Viên)</h2>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-white">Bảng Xếp Hạng Ranking ({results.length} Ứng Viên)</h2>
+              {savedEntries.length > 0 && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Đã lưu {savedEntries.length} kết quả vào lịch sử</span>
+                </div>
+              )}
+            </div>
+            {savedEntries.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleExportExcelBatch}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-md"
+                  title="Xuất bảng xếp hạng đợt này ra file Excel (.xlsx) chuyên nghiệp"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Xuất Excel Đợt Này ({savedEntries.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-colors border border-zinc-700"
+                  title="Xuất file CSV"
+                >
+                  <span>CSV</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="glass-panel rounded-2xl overflow-hidden border border-zinc-800">
@@ -258,18 +335,36 @@ export default function BatchAnalyzePage() {
                         <td className="p-4 font-bold text-white">
                           {idx === 0 ? "🥇 1" : idx === 1 ? "🥈 2" : idx === 2 ? "🥉 3" : idx + 1}
                         </td>
-                        <td className="p-4 font-semibold text-zinc-200">
-                          {item.candidate_name || "N/A"}
+                        <td className="p-4">
+                          <div className="font-semibold text-zinc-200">
+                            {item.candidate_name || "N/A"}
+                          </div>
+                          {(item.candidate_email || item.candidate_phone) && (
+                            <div className="text-[11px] text-zinc-400 flex flex-wrap items-center gap-2 mt-0.5">
+                              {item.candidate_email && (
+                                <a
+                                  href={`mailto:${item.candidate_email}`}
+                                  className="text-indigo-400 hover:underline truncate max-w-[160px]"
+                                  title={item.candidate_email}
+                                >
+                                  {item.candidate_email}
+                                </a>
+                              )}
+                              {item.candidate_phone && (
+                                <span className="font-mono text-zinc-400">{item.candidate_phone}</span>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="p-4 text-zinc-400 font-mono text-[11px]">
                           {item.cvFileName}
                         </td>
                         <td className="p-4 font-extrabold text-sm text-indigo-400">
-                          {item.overall_score}/100
+                          {item.overall_score ?? 0}/100
                         </td>
-                        <td className="p-4">{getBadge(item.classification)}</td>
-                        <td className="p-4 text-zinc-300">{item.skills_analysis?.score}/100</td>
-                        <td className="p-4 text-zinc-300">{item.experience_analysis?.score}/100</td>
+                        <td className="p-4">{getBadge(item.classification || "fail")}</td>
+                        <td className="p-4 text-zinc-300">{item.skills_analysis?.score ?? 0}/100</td>
+                        <td className="p-4 text-zinc-300">{item.experience_analysis?.score ?? 0}/100</td>
                         <td className="p-4 text-right">
                           <button
                             onClick={() => setExpandedIndex(expandedIndex === idx ? null : idx)}
@@ -302,5 +397,3 @@ export default function BatchAnalyzePage() {
     </div>
   );
 }
-
-import React from "react";

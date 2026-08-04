@@ -14,7 +14,9 @@ import {
   ThumbsDown, 
   FileText,
   Copy,
-  Check
+  Check,
+  Mail,
+  Phone
 } from "lucide-react";
 import { useState } from "react";
 
@@ -29,24 +31,24 @@ export function AnalysisResultView({ result }: Props) {
     switch (cls) {
       case "pass":
         return (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold text-xs">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>✅ Đạt (Nên mời phỏng vấn)</span>
+          <div className="inline-flex items-center whitespace-nowrap gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold text-xs">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span>✅ Đạt — Nên mời phỏng vấn</span>
           </div>
         );
       case "potential":
         return (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold text-xs">
-            <AlertTriangle className="w-4 h-4" />
-            <span>⚠️ Tiềm năng (Cần cân nhắc thêm)</span>
+          <div className="inline-flex items-center whitespace-nowrap gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold text-xs">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>⚠️ Tiềm năng — Cần cân nhắc thêm</span>
           </div>
         );
       case "fail":
       default:
         return (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold text-xs">
-            <XCircle className="w-4 h-4" />
-            <span>❌ Không đạt (Không khớp JD)</span>
+          <div className="inline-flex items-center whitespace-nowrap gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold text-xs">
+            <XCircle className="w-4 h-4 flex-shrink-0" />
+            <span>❌ Không đạt — Không khớp JD</span>
           </div>
         );
     }
@@ -64,52 +66,83 @@ export function AnalysisResultView({ result }: Props) {
     setTimeout(() => setCopiedQuestionIndex(null), 2000);
   };
 
+  const skills = result?.skills_analysis || { score: 0, matched: [], missing: [], details: "" };
+  const experience = result?.experience_analysis || { score: 0, years_total: 0, years_relevant: 0, details: "" };
+  const education = result?.education_analysis || { score: 0, details: "" };
+  const language = result?.language_analysis || { score: 0, details: "" };
+
   const categories = [
     {
       label: "Kỹ năng",
       icon: Wrench,
-      score: result.skills_analysis.score,
-      details: result.skills_analysis.details,
+      score: typeof skills.score === "number" ? skills.score : 0,
+      details: skills.details || "Chưa có nhận xét chi tiết",
       color: "bg-indigo-500",
     },
     {
       label: "Kinh nghiệm",
       icon: Briefcase,
-      score: result.experience_analysis.score,
-      details: result.experience_analysis.details,
+      score: typeof experience.score === "number" ? experience.score : 0,
+      details: experience.details || "Chưa có nhận xét chi tiết",
       color: "bg-purple-500",
     },
     {
       label: "Học vấn",
       icon: GraduationCap,
-      score: result.education_analysis.score,
-      details: result.education_analysis.details,
+      score: typeof education.score === "number" ? education.score : 0,
+      details: education.details || "Chưa có nhận xét chi tiết",
       color: "bg-sky-500",
     },
     {
       label: "Ngôn ngữ",
       icon: Globe,
-      score: result.language_analysis.score,
-      details: result.language_analysis.details,
+      score: typeof language.score === "number" ? language.score : 0,
+      details: language.details || "Chưa có nhận xét chi tiết",
       color: "bg-emerald-500",
     },
   ];
+
+  const overallScore = typeof result?.overall_score === "number" ? result.overall_score : 0;
+  const matchedSkills = Array.isArray(skills.matched) ? skills.matched : [];
+  const missingSkills = Array.isArray(skills.missing) ? skills.missing : [];
+  const strengths = Array.isArray(result?.strengths) ? result.strengths : [];
+  const weaknesses = Array.isArray(result?.weaknesses) ? result.weaknesses : [];
+  const interviewQuestions = Array.isArray(result?.interview_questions) ? result.interview_questions : [];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Overview Card */}
       <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-zinc-800 space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-6">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-800 pb-6">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs text-zinc-400 mb-1">
-              <FileText className="w-3.5 h-3.5" />
-              <span>File: {result.cvFileName || "CV.pdf"}</span>
+              <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="truncate">{result?.cvFileName || "CV.pdf"}</span>
             </div>
             <h2 className="text-2xl font-bold text-white">
-              {result.candidate_name || "Ứng viên không rõ tên"}
+              {result?.candidate_name || "Ứng viên không rõ tên"}
             </h2>
+            {(result?.candidate_email || result?.candidate_phone) && (
+              <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-zinc-400">
+                {result?.candidate_email && (
+                  <a
+                    href={`mailto:${result.candidate_email}`}
+                    className="inline-flex items-center gap-1.5 hover:text-indigo-400 transition-colors bg-zinc-900/80 px-2.5 py-1 rounded-md border border-zinc-800"
+                  >
+                    <Mail className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                    <span>{result.candidate_email}</span>
+                  </a>
+                )}
+                {result?.candidate_phone && (
+                  <span className="inline-flex items-center gap-1.5 font-mono text-zinc-300 bg-zinc-900/80 px-2.5 py-1 rounded-md border border-zinc-800">
+                    <Phone className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                    <span>{result.candidate_phone}</span>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          <div>{getClassificationBadge(result.classification)}</div>
+          <div className="flex-shrink-0">{getClassificationBadge(result?.classification || "fail")}</div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 items-center">
@@ -124,8 +157,8 @@ export function AnalysisResultView({ result }: Props) {
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 />
                 <path
-                  className={getScoreColor(result.overall_score)}
-                  strokeDasharray={`${result.overall_score}, 100`}
+                  className={getScoreColor(overallScore)}
+                  strokeDasharray={`${overallScore}, 100`}
                   strokeWidth="3.5"
                   strokeLinecap="round"
                   fill="none"
@@ -134,7 +167,7 @@ export function AnalysisResultView({ result }: Props) {
               </svg>
               <div className="absolute flex flex-col items-center justify-center text-center">
                 <span className="text-3xl font-extrabold text-white">
-                  {result.overall_score}
+                  {overallScore}
                 </span>
                 <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">
                   / 100 Điểm
@@ -151,7 +184,7 @@ export function AnalysisResultView({ result }: Props) {
               Tóm Tắt Đánh Giá
             </h3>
             <p className="text-sm text-zinc-300 leading-relaxed bg-zinc-900/40 p-4 rounded-xl border border-zinc-800/50">
-              {result.summary}
+              {result?.summary || "Không có tóm tắt đánh giá."}
             </p>
           </div>
         </div>
@@ -177,7 +210,7 @@ export function AnalysisResultView({ result }: Props) {
               <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
                 <div
                   className={`h-full rounded-full ${cat.color}`}
-                  style={{ width: `${cat.score}%` }}
+                  style={{ width: `${Math.min(100, Math.max(0, cat.score))}%` }}
                 />
               </div>
 
@@ -192,11 +225,11 @@ export function AnalysisResultView({ result }: Props) {
         <div className="glass-card rounded-xl p-6 border border-zinc-800 space-y-3">
           <h3 className="text-sm font-semibold text-emerald-400 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" />
-            Kỹ Năng Khớp JD ({result.skills_analysis.matched?.length || 0})
+            Kỹ Năng Khớp JD ({matchedSkills.length})
           </h3>
           <div className="flex flex-wrap gap-2 pt-1">
-            {result.skills_analysis.matched?.length ? (
-              result.skills_analysis.matched.map((skill) => (
+            {matchedSkills.length ? (
+              matchedSkills.map((skill) => (
                 <span
                   key={skill}
                   className="px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium"
@@ -213,11 +246,11 @@ export function AnalysisResultView({ result }: Props) {
         <div className="glass-card rounded-xl p-6 border border-zinc-800 space-y-3">
           <h3 className="text-sm font-semibold text-rose-400 flex items-center gap-2">
             <XCircle className="w-4 h-4" />
-            Kỹ Năng Thiếu So Với JD ({result.skills_analysis.missing?.length || 0})
+            Kỹ Năng Thiếu So Với JD ({missingSkills.length})
           </h3>
           <div className="flex flex-wrap gap-2 pt-1">
-            {result.skills_analysis.missing?.length ? (
-              result.skills_analysis.missing.map((skill) => (
+            {missingSkills.length ? (
+              missingSkills.map((skill) => (
                 <span
                   key={skill}
                   className="px-2.5 py-1 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-medium"
@@ -240,7 +273,7 @@ export function AnalysisResultView({ result }: Props) {
             Điểm Mạnh Nổi Bật
           </h3>
           <ul className="space-y-2 text-xs text-zinc-300">
-            {result.strengths?.map((s, idx) => (
+            {strengths.map((s, idx) => (
               <li key={idx} className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
                 <span>{s}</span>
@@ -255,7 +288,7 @@ export function AnalysisResultView({ result }: Props) {
             Điểm Yếu / Rủi Ro
           </h3>
           <ul className="space-y-2 text-xs text-zinc-300">
-            {result.weaknesses?.map((w, idx) => (
+            {weaknesses.map((w, idx) => (
               <li key={idx} className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 flex-shrink-0" />
                 <span>{w}</span>
@@ -273,7 +306,7 @@ export function AnalysisResultView({ result }: Props) {
         </h3>
 
         <div className="space-y-3">
-          {result.interview_questions?.map((q, idx) => (
+          {interviewQuestions.map((q, idx) => (
             <div
               key={idx}
               className="flex items-start justify-between gap-4 p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-200 group hover:border-zinc-700 transition-colors"

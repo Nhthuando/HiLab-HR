@@ -43,9 +43,15 @@ Kế hoạch kiểm thử (Quality Assurance & Test Plan) cho tính năng **HR C
   - Verification: Thanh progress bar đếm `1/5`, `2/5`... `5/5`, Bảng xếp hạng (Leaderboard) hiển thị 5 ứng viên theo thứ tự điểm số giảm dần.
 
 ### 3.4 History & Export (`/history`, `/dashboard`)
-- **TC-WA-07**: Vào trang `/history` -> Danh sách tất cả lượt phân tích hiển thị đầy đủ, phân trang chính xác.
-- **TC-WA-08**: Bấm nút "Chi tiết" ở 1 bản ghi -> Chuyển hướng `/history/[id]` xem đầy đủ thông tin phân tích.
-- **TC-WA-09**: Bấm nút "Xuất CSV" -> Trình duyệt tải xuống file `.csv`, mở trên Excel không bị lỗi phông chữ Tiếng Việt (UTF-8 with BOM).
+- **TC-WA-07**: Vào trang `/history` -> Danh sách tất cả lượt phân tích hiển thị đầy đủ, có hiển thị Vị trí tuyển dụng (JD badge) tương ứng với từng ứng viên.
+- **TC-WA-08**: Bấm nút "Chi tiết" ở 1 bản ghi -> Mở rộng accordion hiển thị toàn bộ kết quả chấm điểm chi tiết.
+- **TC-WA-09**: Bấm nút "Xuất CSV" -> Trình duyệt tải xuống file `.csv`, mở trên Excel không bị lỗi phông chữ Tiếng Việt (UTF-8 with BOM), có đầy đủ 2 cột JD.
+- **TC-WA-10**: Bấm nút "Xuất Excel (.xlsx)" -> Trình duyệt tải file `.xlsx` cao cấp với 2 worksheets (`Bảng Xếp Hạng Ứng Viên` & `Mô Tả Công Việc (JD)`), có định dạng màu sắc (Header Indigo, Xếp loại Xanh/Vàng/Hồng), border tinh tế và auto column width.
+
+### 3.5 AI Engine & Quota Optimization
+- **TC-WA-11**: Phân tích file PDF có text -> AI trích xuất text trước và gửi dạng text payload (tiết kiệm ~60-80% token quota so với base64 PDF inlineData).
+- **TC-WA-12**: Phân tích file PDF scan (không có text) -> Tự động fallback sang gửi base64 PDF inlineData để Gemini OCR và phân tích.
+- **TC-WA-13**: Khi Gemini API gặp lỗi quota / 429 -> Tự động kích hoạt Groq fallback (`llama-3.3-70b-versatile`) đảm bảo không đứt gãy trải nghiệm.
 
 ---
 

@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/prisma";
 import { analyzeCVWithGemini, CVAnalysisResult } from "@/lib/gemini";
-import { getOrCreateUserForSession } from "@/lib/user";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
     const formData = await req.formData();
-    
+
     // Support both 'cvs' and 'cvs[]' keys in FormData
     const rawFiles = [
       ...formData.getAll("cvs"),
@@ -44,32 +40,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Không tìm thấy file PDF hợp lệ nào trong các file đã upload." }, { status: 400 });
     }
 
-    // Always get or create user for session (authenticated user or Guest User)
-    const userId = await getOrCreateUserForSession(session);
-
-    let jdRecordId: string | null = null;
-    try {
-      const jdRecord = await db.jobDescription.create({
-        data: {
-          title: `Batch JD (${validFiles.length} CVs): ${jdText.slice(0, 35)}...`,
-          content: jdText,
-          userId: userId,
-        },
-      });
-      jdRecordId = jdRecord.id;
-      console.log(`✅ [Neon DB] Đã tạo Batch JobDescription ID: ${jdRecordId} cho user: ${userId}`);
-    } catch (e) {
-      console.error("❌ [Neon DB Error] Lỗi tạo DB record cho Batch JD:", e);
-    }
-
-    const results: Array<CVAnalysisResult & { cvFileName: string; id?: string; errorMsg?: string }> = [];
+    const results: Array<CVAnalysisResult & { cvFileName: string; errorMsg?: string }> = [];
 
     for (let i = 0; i < validFiles.length; i++) {
       const cvFile = validFiles[i];
 
       // Delay between API calls to avoid Gemini rate limits
+      // Free-tier Gemini allows ~20 req/day and has per-minute limits.
+      // 2s spacing helps avoid hitting the per-minute limit in batch mode.
       if (i > 0) {
-        await delay(800);
+        await delay(2000);
       }
 
       let result: CVAnalysisResult | null = null;
@@ -87,7 +67,8 @@ export async function POST(req: NextRequest) {
           errorMsg = err.message || "Lỗi khi gọi Gemini API";
           console.warn(`Lỗi phân tích file ${cvFile.name} (lần ${attempt}/2):`, errorMsg);
           if (attempt < 2) {
-            await delay(1200);
+            // Wait longer on retry to let the rate limit window reset
+            await delay(3000);
           }
         }
       }
@@ -96,6 +77,8 @@ export async function POST(req: NextRequest) {
       if (!result) {
         result = {
           candidate_name: cvFile.name.replace(/\.pdf$/i, ""),
+          candidate_email: "",
+          candidate_phone: "",
           overall_score: 0,
           classification: "fail",
           skills_analysis: { score: 0, matched: [], missing: [], details: "Lỗi phân tích" },
@@ -109,36 +92,7 @@ export async function POST(req: NextRequest) {
         };
       }
 
-      // Save to Neon DB
-      let savedId: string | undefined;
-      if (jdRecordId) {
-        try {
-          const saved = await db.analysis.create({
-            data: {
-              candidateName: result.candidate_name,
-              cvFileName: cvFile.name,
-              overallScore: result.overall_score,
-              classification: result.classification,
-              skillsAnalysis: result.skills_analysis as any,
-              experienceAnalysis: result.experience_analysis as any,
-              educationAnalysis: result.education_analysis as any,
-              languageAnalysis: result.language_analysis as any,
-              strengths: result.strengths,
-              weaknesses: result.weaknesses,
-              interviewQuestions: result.interview_questions,
-              summary: result.summary,
-              jobDescriptionId: jdRecordId,
-              userId: userId,
-            },
-          });
-          savedId = saved.id;
-          console.log(`✅ [Neon DB] Đã lưu thành công batch item Analysis ID: ${savedId}`);
-        } catch (dbErr) {
-          console.error("❌ [Neon DB Error] Lỗi lưu batch item vào Neon DB:", dbErr);
-        }
-      }
-
-      results.push({ ...result, cvFileName: cvFile.name, id: savedId, errorMsg });
+      results.push({ ...result, cvFileName: cvFile.name, errorMsg });
     }
 
     // Sort results by overall_score descending (highest score first)

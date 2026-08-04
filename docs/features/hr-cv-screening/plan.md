@@ -10,11 +10,9 @@ Kế hoạch triển khai kỹ thuật, kiến trúc và quyết định thiết
 |---|---|---|
 | **Framework** | Next.js 15 (App Router) + React 19 | Hiệu năng cao, Server Components, API routes tích hợp sẵn. |
 | **Styling & UI** | Tailwind CSS v4 + Shadcn/UI + Lucide Icons | Xây dựng giao diện Dark mode glassmorphism hiện đại, responsive. |
-| **Database** | Neon PostgreSQL (Serverless) | Cơ sở dữ liệu Postgres tự động scale, kết nối nhanh với Serverless functions. |
-| **ORM** | Prisma ORM | Type-safe database client, migration dễ dàng. |
-| **Authentication** | NextAuth.js (Auth.js v5) | Hỗ trợ Google OAuth 2.0 chuẩn bảo mật, quản lý session an toàn. |
+| **History Storage** | Browser LocalStorage | Lưu lịch sử phân tích phía client, không cần database hay authentication. |
 | **AI Model SDK** | `@google/genai` (Gemini 2.5 Flash) | Hỗ trợ đọc trực tiếp PDF binary, xử lý tốc độ cao và chi phí tối ưu. |
-| **Deployment** | Vercel | Tích hợp liền mạch với Next.js và Neon Postgres. |
+| **Deployment** | Vercel | Tích hợp liền mạch với Next.js. |
 
 ---
 
@@ -32,9 +30,9 @@ Kế hoạch triển khai kỹ thuật, kiến trúc và quyết định thiết
 - **Quyết định**: File CV PDF upload lên server chỉ đọc tạm vào memory Buffer để phục vụ đợt gọi API Gemini, sau đó chỉ lưu chuỗi kết quả phân tích JSON vào Database Neon Postgres.
 - **Lý do**: Đảm bảo quyền riêng tư dữ liệu cá nhân của ứng viên (Privacy by Design), tránh phát sinh chi phí lưu trữ Vercel Blob/S3 không cần thiết trong giai đoạn demo.
 
-### ADR-4: Tách biệt Agent Skill & Web App Backend
-- **Quyết định**: `SKILL.md` sử dụng Python Script (`scripts/analyze_cv.py`) gọi Gemini API trực tiếp trong IDE; còn Web App sử dụng Next.js Route Handlers (`/api/analyze`).
-- **Lý do**: Đảm bảo tính độc lập tuyệt đối giữa môi trường IDE dành cho kỹ thuật viên và môi trường Web App thương mại dành cho người dùng cuối HR.
+### ADR-5: LocalStorage cho History thay vì Database
+- **Quyết định**: Lưu lịch sử phân tích trong `localStorage` của trình duyệt thay vì Neon PostgreSQL. Không có authentication.
+- **Lý do**: Đơn giản hóa triển khai, không cần cấu hình OAuth/DB, phù hợp cho demo sprint. Phân tích vẫn được thực hiện server-side (Next.js Route Handler + Gemini API), chỉ có việc lưu kết quả là client-side.
 
 ---
 
@@ -70,11 +68,8 @@ gantt
 > [!IMPORTANT]
 > **Gemini API Key**: Đã tạo và cấu hình thành công `GEMINI_API_KEY` trong `.env` / `.env.local`.
 
-> [!IMPORTANT]
-> **Google OAuth Credentials**: Đã tạo `AUTH_GOOGLE_ID` và `AUTH_GOOGLE_SECRET` trên GCP Console cho Auth.js v5.
-
-> [!IMPORTANT]
-> **Neon Database URL**: Đã kết nối và push thành công schema qua `npx prisma db push` với connection string PostgreSQL của Neon.
+> [!NOTE]
+> **Không cần Authentication hay Database**: Ứng dụng chạy hoàn toàn không cần Google OAuth hay Neon DB. Lịch sử được lưu trong LocalStorage trình duyệt.
 
 ---
 

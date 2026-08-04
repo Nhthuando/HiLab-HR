@@ -1,4 +1,4 @@
-import { Bot, Sparkles } from "lucide-react";
+import { Bot } from "lucide-react";
 
 export function Footer() {
   return (
@@ -7,15 +7,10 @@ export function Footer() {
         <div className="flex items-center gap-2">
           <Bot className="w-4 h-4 text-indigo-400" />
           <span className="font-semibold text-zinc-300">HiLab HR CV Screening Agent</span>
-          <span>— Learning Sprint Tuần 1</span>
+          <span>— Hệ Thống Sàng Lọc & Đánh Giá CV Thông Minh</span>
         </div>
-        <div className="flex items-center gap-4 text-zinc-400">
-          <span>Powered by Gemini 2.5 Flash</span>
-          <span>•</span>
-          <span className="flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            Antigravity Spec-Driven AI
-          </span>
+        <div className="flex items-center gap-4 text-zinc-500">
+          <span>© {new Date().getFullYear()} HiLab HR. All rights reserved.</span>
         </div>
       </div>
     </footer>

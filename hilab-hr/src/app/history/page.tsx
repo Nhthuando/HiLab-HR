@@ -1,65 +1,94 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { 
-  History, 
-  Download, 
-  FileText, 
-  Loader2, 
-  CheckCircle2, 
-  AlertTriangle, 
-  XCircle, 
+import {
+  History,
+  Download,
+  FileText,
   Trash2,
   ChevronDown,
   ChevronUp,
-  FileSearch
+  FileSearch,
+  RefreshCw,
+  Briefcase,
+  FileSpreadsheet
 } from "lucide-react";
 import { AnalysisResultView } from "@/components/AnalysisResultView";
+import {
+  StoredAnalysis,
+  getAnalyses,
+  deleteAnalysis,
+  exportAnalysesToCSV,
+  clearAllAnalyses,
+  extractJdInfo
+} from "@/lib/localStorage";
+import { exportAnalysesToExcel } from "@/lib/excelExport";
 
 export default function HistoryPage() {
-  const { data: session } = useSession();
-  const [analyses, setAnalyses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [analyses, setAnalyses] = useState<StoredAnalysis[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  useEffect(() => {
-    async function fetchHistory() {
-      try {
-        const res = await fetch("/api/analyses");
-        if (res.ok) {
-          const data = await res.json();
-          setAnalyses(data.data || []);
-        }
-      } catch (err) {
-        console.error("Lỗi fetch lịch sử:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchHistory();
+  const loadAnalyses = useCallback(() => {
+    setAnalyses(getAnalyses());
   }, []);
 
+  useEffect(() => {
+    loadAnalyses();
+  }, [loadAnalyses]);
+
+  const handleDelete = (id: string) => {
+    deleteAnalysis(id);
+    setAnalyses((prev) => prev.filter((a) => a.id !== id));
+    if (expandedId === id) setExpandedId(null);
+  };
+
+  const handleClearAll = () => {
+    clearAllAnalyses();
+    setAnalyses([]);
+    setExpandedId(null);
+    setShowClearConfirm(false);
+  };
+
+  const handleExportExcel = async () => {
+    if (analyses.length > 0) {
+      await exportAnalysesToExcel(analyses);
+    }
+  };
 
   const handleExportCSV = () => {
-    window.open("/api/analyses/export", "_blank");
+    if (analyses.length > 0) {
+      exportAnalysesToCSV(analyses);
+    }
   };
 
   const getBadge = (cls: string) => {
     switch (cls) {
       case "pass":
-        return <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold text-xs">✅ Đạt</span>;
+        return (
+          <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold text-xs">
+            ✅ Đạt
+          </span>
+        );
       case "potential":
-        return <span className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold text-xs">⚠️ Tiềm năng</span>;
+        return (
+          <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold text-xs">
+            ⚠️ Tiềm năng
+          </span>
+        );
       default:
-        return <span className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold text-xs">❌ Không đạt</span>;
+        return (
+          <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold text-xs">
+            ❌ Không đạt
+          </span>
+        );
     }
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xs font-semibold text-indigo-400">
@@ -67,25 +96,68 @@ export default function HistoryPage() {
             <span>QUẢN LÝ LỊCH SỬ</span>
           </div>
           <h1 className="text-3xl font-bold text-white">Lịch Sử Phân Tích CV</h1>
+          <p className="text-xs text-zinc-400">
+            Tổng hợp toàn bộ hồ sơ ứng viên đã phân tích kèm Job Description (JD) tương ứng.
+          </p>
         </div>
 
         {analyses.length > 0 && (
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-md"
-          >
-            <Download className="w-4 h-4" />
-            <span>Xuất Báo Cáo CSV</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={loadAnalyses}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-colors"
+              title="Tải lại"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-md"
+              title="Xuất toàn bộ lịch sử ra file Excel (.xlsx) chuyên nghiệp"
+            >
+              <Download className="w-4 h-4" />
+              <span>Xuất Excel (.xlsx) ({analyses.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-colors border border-zinc-700"
+              title="Xuất file CSV"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>CSV</span>
+            </button>
+            {!showClearConfirm ? (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Xóa tất cả
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-400">Xác nhận xóa hết?</span>
+                <button
+                  onClick={handleClearAll}
+                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition-colors"
+                >
+                  Xóa hết
+                </button>
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-xs font-semibold text-zinc-300 transition-colors"
+                >
+                  Hủy
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center p-12 text-zinc-400 text-sm gap-2">
-          <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
-          <span>Đang tải lịch sử...</span>
-        </div>
-      ) : analyses.length === 0 ? (
+      {analyses.length === 0 ? (
         <div className="glass-panel p-12 rounded-2xl text-center space-y-4 border border-zinc-800">
           <FileSearch className="w-12 h-12 text-zinc-600 mx-auto" />
           <h2 className="text-lg font-bold text-white">Chưa có dữ liệu lịch sử</h2>
@@ -105,73 +177,106 @@ export default function HistoryPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-900/80 text-zinc-400 uppercase tracking-wider font-semibold border-b border-zinc-800">
                 <tr>
-                  <th className="p-4">Thời gian</th>
-                  <th className="p-4">Ứng viên</th>
-                  <th className="p-4">File CV</th>
-                  <th className="p-4">Vị trí (JD)</th>
-                  <th className="p-4">Điểm Tổng</th>
-                  <th className="p-4">Xếp Loại</th>
-                  <th className="p-4 text-right">Thao tác</th>
+                  <th className="p-3.5 whitespace-nowrap">Thời gian</th>
+                  <th className="p-3.5">Vị trí tuyển dụng (JD)</th>
+                  <th className="p-3.5">Ứng viên</th>
+                  <th className="p-3.5">File CV</th>
+                  <th className="p-3.5 whitespace-nowrap">Điểm Tổng</th>
+                  <th className="p-3.5">Xếp loại</th>
+                  <th className="p-3.5 text-right whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
-                {analyses.map((item) => (
-                  <React.Fragment key={item.id}>
-                    <tr className="hover:bg-zinc-800/40 transition-colors">
-                      <td className="p-4 text-zinc-400 font-mono text-[11px]">
-                        {new Date(item.createdAt).toLocaleDateString("vi-VN")}
-                      </td>
-                      <td className="p-4 font-semibold text-zinc-200">
-                        {item.candidateName || "N/A"}
-                      </td>
-                      <td className="p-4 text-zinc-400 font-mono text-[11px]">
-                        {item.cvFileName}
-                      </td>
-                      <td className="p-4 text-zinc-300 truncate max-w-[150px]">
-                        {item.jobDescription?.title || "N/A"}
-                      </td>
-                      <td className="p-4 font-extrabold text-sm text-indigo-400">
-                        {item.overallScore}/100
-                      </td>
-                      <td className="p-4">{getBadge(item.classification)}</td>
-                      <td className="p-4 text-right">
-                        <button
-                          onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
-                        >
-                          <span>{expandedId === item.id ? "Ẩn" : "Xem chi tiết"}</span>
-                          {expandedId === item.id ? (
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          ) : (
-                            <ChevronDown className="w-3.5 h-3.5" />
+                {analyses.map((item) => {
+                  const title = item.jdTitle || (item.jdText ? extractJdInfo(item.jdText).jdTitle : "Vị trí tuyển dụng");
+                  const summary = item.jdSummary || (item.jdText ? extractJdInfo(item.jdText).jdSummary : "");
+
+                  return (
+                    <React.Fragment key={item.id}>
+                      <tr className="hover:bg-zinc-800/40 transition-colors">
+                        <td className="p-3.5 text-zinc-400 font-mono text-[11px] whitespace-nowrap">
+                          {new Date(item.analyzedAt).toLocaleString("vi-VN")}
+                        </td>
+                        <td className="p-3.5 max-w-[220px]">
+                          <div className="flex items-center gap-1.5 text-indigo-300 font-medium text-xs truncate" title={title}>
+                            <Briefcase className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                            <span className="truncate">{title}</span>
+                          </div>
+                          {summary && (
+                            <div className="text-[10px] text-zinc-500 truncate mt-0.5" title={summary}>
+                              {summary}
+                            </div>
                           )}
-                        </button>
-                      </td>
-                    </tr>
-                    {expandedId === item.id && (
-                      <tr>
-                        <td colSpan={7} className="p-6 bg-zinc-950/80 border-b border-zinc-800">
-                          <AnalysisResultView
-                            result={{
-                              candidate_name: item.candidateName || "N/A",
-                              overall_score: item.overallScore,
-                              classification: item.classification as any,
-                              skills_analysis: item.skillsAnalysis as any,
-                              experience_analysis: item.experienceAnalysis as any,
-                              education_analysis: item.educationAnalysis as any,
-                              language_analysis: item.languageAnalysis as any,
-                              strengths: item.strengths,
-                              weaknesses: item.weaknesses,
-                              interview_questions: item.interviewQuestions,
-                              summary: item.summary,
-                              cvFileName: item.cvFileName,
-                            }}
-                          />
+                        </td>
+                        <td className="p-3.5">
+                          <div className="font-semibold text-zinc-200">
+                            {item.result.candidate_name || "N/A"}
+                          </div>
+                          {(item.result.candidate_email || item.result.candidate_phone) && (
+                            <div className="text-[11px] text-zinc-400 flex flex-wrap items-center gap-2 mt-0.5">
+                              {item.result.candidate_email && (
+                                <a
+                                  href={`mailto:${item.result.candidate_email}`}
+                                  className="text-indigo-400 hover:underline truncate max-w-[150px]"
+                                  title={item.result.candidate_email}
+                                >
+                                  {item.result.candidate_email}
+                                </a>
+                              )}
+                              {item.result.candidate_phone && (
+                                <span className="font-mono text-zinc-400">{item.result.candidate_phone}</span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3.5 text-zinc-400 font-mono text-[11px] max-w-[160px]">
+                          <div className="flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5 flex-shrink-0 text-zinc-500" />
+                            <span className="truncate" title={item.cvFileName}>{item.cvFileName}</span>
+                          </div>
+                        </td>
+                        <td className="p-3.5 font-extrabold text-sm text-indigo-400 whitespace-nowrap">
+                          {item.result.overall_score}/100
+                        </td>
+                        <td className="p-3.5">{getBadge(item.result.classification)}</td>
+                        <td className="p-3.5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors whitespace-nowrap text-xs"
+                            >
+                              <span>{expandedId === item.id ? "Ẩn" : "Chi tiết"}</span>
+                              {expandedId === item.id ? (
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-colors"
+                              title="Xóa khỏi lịch sử"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                ))}
+                      {expandedId === item.id && (
+                        <tr>
+                          <td colSpan={7} className="p-6 bg-zinc-950/80 border-b border-zinc-800">
+                            <AnalysisResultView
+                              result={{
+                                ...item.result,
+                                cvFileName: item.cvFileName,
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -180,5 +285,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-import React from "react";

@@ -17,7 +17,7 @@ Nhân sự HR non-tech cần một công cụ tự động hóa quy trình sàng
 ### 1.2 Giải pháp (Solution)
 Xây dựng giải pháp kép:
 1. **Skill Engine (`SKILL.md`)**: Dành cho Dev / Technical Reviewer chạy trực tiếp trong Antigravity/Claude IDE.
-2. **Web Application (`hilab-hr`)**: Dành cho HR Non-tech truy cập giao diện web trực quan.
+2. **Web Application (`hilab-hr`)**: Dành cho HR Non-tech truy cập giao diện web trực quan, **không cần đăng nhập**.
 
 ---
 
@@ -30,11 +30,9 @@ Xây dựng giải pháp kép:
 | **US-03** | HR Manager | Xem điểm số chi tiết từng hạng mục (kỹ năng, kinh nghiệm, học vấn, ngôn ngữ) | Hiểu rõ căn cứ đánh giá của AI. |
 | **US-04** | HR Manager | Xem danh sách Điểm mạnh (Strengths) và Điểm yếu (Weaknesses) | Đánh giá nhanh mức độ đáp ứng của ứng viên. |
 | **US-05** | HR Manager | Xem các câu hỏi phỏng vấn được gợi ý dựa trên CV | Chuẩn bị nội dung phỏng vấn chuyên sâu và hiệu quả hơn. |
-| **US-06** | HR Manager | Xuất danh sách phân tích ra file CSV | Dễ dàng lưu trữ, làm báo cáo và chia sẻ với Trưởng bộ phận. |
-| **US-07** | HR Manager | Xem lại lịch sử các lượt phân tích trước đó | Tra cứu lại kết quả mà không cần chạy phân tích lại. |
+| **US-06** | HR Manager | Xuất danh sách phân tích ra file CSV | Dễ dàng lưu trữ, làm báo cáo và chia sẻ với Trưởng bộ phận. CSV bao gồm tên, email, SĐT, điểm số. |
+| **US-07** | HR Manager | Xem lại lịch sử các lượt phân tích trước đó | Tra cứu lại kết quả mà không cần chạy phân tích lại (lưu trong LocalStorage trình duyệt). |
 | **US-08** | HR Manager | Quản lý và lưu trữ các mẫu JD thường dùng | Tái sử dụng nhanh chóng cho các đợt tuyển dụng sau. |
-| **US-09** | User | Đăng nhập an toàn bằng tài khoản Google | Sử dụng hệ thống thuận tiện mà không cần quản lý mật khẩu riêng. |
-| **US-10** | HR Manager | Xem Dashboard tổng quan chỉ số tuyển dụng | Nắm bắt nhanh tỷ lệ ứng viên Đạt/Tiềm năng/Không đạt. |
 
 ---
 
@@ -54,12 +52,16 @@ Xây dựng giải pháp kép:
 
 ### 3.2 Web App Specifications (`hilab-hr`)
 
+> **Không yêu cầu đăng nhập**: Ứng dụng hoàn toàn public, không cần authentication. Lịch sử được lưu trong LocalStorage của trình duyệt.
+
 #### 3.2.1 Single CV Screening (`/analyze`)
 - Form nhận thông tin: Upload 1 file PDF CV (tối đa 10MB) + Nhập JD text hoặc chọn từ JD Templates.
 - Processing State: Hiển thị hiệu ứng loading/skeleton animation mượt mà.
+- Auto-save: Tự động lưu kết quả vào LocalStorage sau khi phân tích thành công.
 - Result Screen:
   - Radial score gauge (Điểm tổng quan 0-100).
   - Badge xếp loại (Pass / Potential / Fail).
+  - Hiển thị Email và SĐT được AI trích xuất từ CV.
   - Progress bars chi tiết 4 mục: Kỹ năng (35%), Kinh nghiệm (35%), Học vấn (15%), Ngôn ngữ & Khác (15%).
   - Card danh sách điểm mạnh & điểm yếu.
   - Accordion / Card danh sách câu hỏi phỏng vấn gợi ý.
@@ -68,111 +70,60 @@ Xây dựng giải pháp kép:
 - Drag & Drop zone hỗ trợ chọn nhiều file PDF cùng lúc.
 - Tiến trình phân tích theo hàng chờ (sequential progress bar).
 - Bảng xếp hạng (Leaderboard Table) sắp xếp thứ tự ưu tiên ứng viên theo điểm số từ cao xuống thấp.
+- Auto-save: Tự động lưu tất cả kết quả vào LocalStorage.
+- Nút xuất CSV ngay tại màn hình kết quả.
 
-#### 3.2.3 History & CSV Export (`/history`, `/dashboard`)
-- Lịch sử phân tích lưu trong Database Neon PostgreSQL.
-- Tính năng lọc theo ngày, theo vị trí công việc, theo xếp loại.
-- Nút "Xuất CSV" hỗ trợ tải file báo cáo chuẩn UTF-8.
+#### 3.2.3 History, Excel & CSV Export (`/history`)
+- Lịch sử phân tích lưu trong **LocalStorage trình duyệt** (không cần database) kèm thông tin Job Description (`jdTitle`, `jdSummary`, `jdText`).
+- Bảng danh sách với các cột: Thời gian, **Vị trí tuyển dụng (JD)**, Tên ứng viên, **Email**, **SĐT**, File CV, Điểm Tổng, Xếp Loại.
+- Nút "Xuất Excel (.xlsx)": Báo cáo bảng tính chuyên nghiệp đa sheet (`Bảng Xếp Hạng Ứng Viên` và `Mô Tả Công Việc (JD)`), phối màu Indigo/Navy hiện đại, border mỏng thanh lịch, highlight màu xếp loại (Xanh lá / Vàng / Hồng), tự căn chỉnh độ rộng cột và text wrapping.
+- Nút "Xuất CSV": Hỗ trợ tải file CSV chuẩn UTF-8 BOM kèm cột Vị trí tuyển dụng & Tóm tắt JD.
 
 ---
 
-## 4. Technical Specifications & Database Schema
+## 4. Technical Specifications
 
-### 4.1 Prisma Database Schema
+### 4.1 LocalStorage Data Schema
 
-```prisma
-model User {
-  id              String           @id @default(cuid())
-  name            String?
-  email           String           @unique
-  emailVerified   DateTime?
-  image           String?
-  accounts        Account[]
-  sessions        Session[]
-  analyses        Analysis[]
-  jobDescriptions JobDescription[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+```typescript
+interface StoredAnalysis {
+  id: string;           // timestamp + random suffix
+  cvFileName: string;
+  analyzedAt: string;   // ISO 8601 datetime
+  jdTitle?: string;     // Tên vị trí tuyển dụng trích xuất từ JD
+  jdSummary?: string;   // Tóm tắt 1-2 câu yêu cầu JD
+  jdText?: string;      // Nội dung text đầy đủ của JD (giới hạn 5000 ký tự)
+  result: CVAnalysisResult;
 }
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-  @@unique([identifier, token])
-}
-
-model JobDescription {
-  id          String     @id @default(cuid())
-  title       String     
-  content     String     @db.Text
-  userId      String
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  analyses    Analysis[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-}
-
-model Analysis {
-  id                 String         @id @default(cuid())
-  candidateName      String?        
-  cvFileName         String         
-  cvFileUrl          String?        
-  overallScore       Int            
-  classification     String         // "pass" | "potential" | "fail"
-  skillsAnalysis     Json           
-  experienceAnalysis Json           
-  educationAnalysis  Json           
-  languageAnalysis   Json           
-  strengths          String[]       
-  weaknesses         String[]       
-  interviewQuestions String[]       
-  summary            String         @db.Text
-  jobDescriptionId   String
-  jobDescription     JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
-  userId             String
-  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt          DateTime       @default(now())
+interface CVAnalysisResult {
+  candidate_name: string;
+  candidate_email?: string;   // Trích xuất từ CV bằng Gemini / Groq / Regex
+  candidate_phone?: string;   // Trích xuất từ CV bằng Gemini / Groq / Regex
+  overall_score: number;
+  classification: "pass" | "potential" | "fail";
+  skills_analysis: { score: number; matched: string[]; missing: string[]; details: string };
+  experience_analysis: { score: number; years_total: number; years_relevant: number; details: string };
+  education_analysis: { score: number; details: string };
+  language_analysis: { score: number; details: string };
+  strengths: string[];
+  weaknesses: string[];
+  interview_questions: string[];
+  summary: string;
 }
 ```
 
-### 4.2 Rest API Endpoints
+### 4.2 REST API Endpoints (Stateless)
 
 | Method | Endpoint | Description | Request Payload | Response |
 |---|---|---|---|---|
-| `POST` | `/api/analyze` | Phân tích 1 CV với JD | `FormData` (file, jobDescriptionId / jdText) | `Analysis` JSON Object |
-| `POST` | `/api/analyze/batch` | Phân tích danh sách CV | `FormData` (files[], jobDescriptionId / jdText) | `Analysis[]` Array |
-| `GET` | `/api/analyses` | Lấy danh sách lịch sử phân tích | Query params: `page`, `limit` | `{ data: Analysis[], total: number }` |
-| `GET` | `/api/analyses/[id]` | Xem chi tiết 1 kết quả phân tích | Path param `id` | `Analysis` JSON Object |
-| `DELETE` | `/api/analyses/[id]` | Xóa 1 bản ghi phân tích | Path param `id` | `{ success: boolean }` |
-| `GET` | `/api/analyses/export` | Tải xuống file CSV báo cáo | Query params filter | Binary CSV file (`Content-Type: text/csv`) |
-| `POST` | `/api/job-descriptions` | Tạo template JD mới | `{ title: string, content: string }` | `JobDescription` Object |
-| `GET` | `/api/job-descriptions` | Danh sách JD của user | None | `JobDescription[]` |
+| `POST` | `/api/analyze` | Phân tích 1 CV với JD | `FormData` (cv: File, jd: string) | `{ success: boolean, data: CVAnalysisResult }` |
+| `POST` | `/api/analyze/batch` | Phân tích danh sách CV | `FormData` (cvs: File[], jd: string) | `{ success: boolean, data: Array<CVAnalysisResult & { cvFileName }> }` |
+
+### 4.3 AI Engine & Quota Optimization Architecture
+- **Text-First Strategy**: Trích xuất text từ file PDF trước qua `pdf-parse`. Nếu file chứa văn bản rõ ràng (>=60 ký tự), gửi text trực tiếp vào Gemini 2.5 Flash prompt thay vì gửi file binary PDF Base64 (tiết kiệm **60-80% token quota**).
+- **Vision/InlineData Fallback**: Chỉ gửi file base64 PDF inlineData khi PDF là bản scan/ảnh không trích xuất được text.
+- **Failover Provider**: Tự động fallback sang Groq (`llama-3.3-70b-versatile`) khi Gemini API đạt ngưỡng rate limit (HTTP 429) hoặc quota exhausted.
 
 ---
 
@@ -186,3 +137,5 @@ model Analysis {
    - Danger / Fail: Rose Red (`#f43f5e`).
 3. **Typography**: Google Font Inter.
 4. **Biểu đồ & Chỉ số**: Gauge chart hình tròn cho Điểm tổng, thanh progress bar phân mảng cho 4 tiêu chí thành phần.
+5. **Badges**: Sử dụng `whitespace-nowrap` + `inline-flex` để đảm bảo không bị cắt trên mọi viewport.
+6. **Excel Report Styling**: Thiết kế bảng tính với header Indigo `1F2937` / `4F46E5`, border xám mảnh `E5E7EB`, font `Segoe UI` / `Calibri`, xen kẽ dòng trắng - xám nhạt `F9FAFB`.

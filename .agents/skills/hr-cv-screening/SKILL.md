@@ -1,6 +1,6 @@
 ---
 name: hr-cv-screening
-description: Phân tích và chấm điểm CV ứng viên dựa trên JD (Job Description). Đọc file CV PDF trong workspace, so sánh với JD, trả về kết quả đánh giá chi tiết bao gồm điểm số, phân tích từng mục, xếp loại, và gợi ý câu hỏi phỏng vấn.
+description: Phân tích và chấm điểm CV ứng viên dựa trên JD (Job Description). Đọc file CV PDF trong workspace, so sánh với JD, trả về kết quả đánh giá chi tiết bao gồm điểm số, phân tích từng mục, xếp loại, và gợi ý câu hỏi phỏng vấn. tự động kích hoạt khi users mention hoặc nhắc tới CV hoặc phân tích, chấm điểm CV.
 ---
 
 # HR CV Screening Agent

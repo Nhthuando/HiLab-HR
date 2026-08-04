@@ -25,7 +25,7 @@ export default function HomePage() {
         <div className="relative z-10 max-w-3xl space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Learning Sprint Tuần 1 — Claude Agent & Skill Solution</span>
+            <span>Hệ Thống Trợ Lý Tuyển Dụng & Sàng Lọc CV Thông Minh</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight text-white">
@@ -34,7 +34,7 @@ export default function HomePage() {
           </h1>
 
           <p className="text-zinc-400 text-base sm:text-lg leading-relaxed">
-            Giải pháp dành cho nhân sự Back Office (HR): Upload CV PDF, nhập Job Description và nhận kết quả phân tích chuyên sâu tự động bằng Gemini 2.5 Flash trong vài giây.
+            Giải pháp dành cho nhân sự Back Office (HR): Upload CV PDF, nhập Job Description và nhận kết quả phân tích chuyên sâu tự động bằng AI trong vài giây.
           </p>
 
           <div className="flex flex-wrap gap-4 pt-2">
@@ -81,9 +81,9 @@ export default function HomePage() {
       {/* Dual Solution Section (Agent/Skill vs Web UI) */}
       <section className="space-y-6">
         <div className="text-center space-y-2 max-w-2xl mx-auto">
-          <h2 className="text-2xl font-bold text-white">2 Cách Tiếp Cận Theo Đề Bài</h2>
+          <h2 className="text-2xl font-bold text-white">2 Cách Tiếp Cận Linh Hoạt</h2>
           <p className="text-zinc-400 text-sm">
-            Đáp ứng đầy đủ yêu cầu bài tập: vừa có Agent/Skill chạy trực tiếp trong IDE cho dev/reviewer, vừa có Web App cho HR non-tech.
+            Hỗ trợ vừa chạy trực tiếp qua công cụ dòng lệnh (CLI/IDE) cho kỹ thuật viên, vừa có Web App trực quan cho chuyên viên tuyển dụng HR.
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export default function HomePage() {
               </span>
             </div>
 
-            <h3 className="text-lg font-bold text-white">1. Antigravity / Claude SKILL.md</h3>
+            <h3 className="text-lg font-bold text-white">1. Chế Độ CLI & IDE Skill (`SKILL.md`)</h3>
             <p className="text-xs text-zinc-400 leading-relaxed">
               Skill độc lập nằm tại thư mục <code className="text-indigo-400 font-mono">.agents/skills/hr-cv-screening</code>. Developer chỉ cần chỉ định file CV và JD trong chat IDE để Agent tự đọc file, gọi Python script và xuất bảng markdown.
             </p>
@@ -202,9 +202,9 @@ export default function HomePage() {
             <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
               <Zap className="w-5 h-5" />
             </div>
-            <h3 className="font-semibold text-white">Đăng Nhập Google & Neon DB</h3>
+            <h3 className="font-semibold text-white">Lịch Sử & Xuất CSV</h3>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Lưu lịch sử phân tích an toàn theo tài khoản Google trên cơ sở dữ liệu Postgres Neon Cloud.
+              Tự động lưu mọi kết quả phân tích vào trình duyệt. Xuất báo cáo CSV đầy đủ thông tin (Email, SĐT, điểm số) chỉ với 1 click.
             </p>
           </div>
         </div>

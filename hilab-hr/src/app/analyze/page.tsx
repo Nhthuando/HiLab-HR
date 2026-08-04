@@ -1,18 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  FileSearch, 
-  UploadCloud, 
-  FileText, 
-  Sparkles, 
-  AlertCircle, 
-  Loader2, 
+import {
+  FileSearch,
+  UploadCloud,
+  FileText,
+  Sparkles,
+  AlertCircle,
+  Loader2,
   RefreshCw,
-  Zap
+  Zap,
+  CheckCircle2,
+  Download,
+  FileSpreadsheet
 } from "lucide-react";
 import { CVAnalysisResult } from "@/lib/gemini";
 import { AnalysisResultView } from "@/components/AnalysisResultView";
+import { saveAnalysis, exportAnalysesToCSV, StoredAnalysis } from "@/lib/localStorage";
+import { exportAnalysesToExcel } from "@/lib/excelExport";
 
 const SAMPLE_JD = `Vị trí: Senior Frontend Developer
 Địa điểm: TP. Hồ Chí Minh (Hybrid)
@@ -38,6 +43,7 @@ export default function SingleAnalyzePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CVAnalysisResult | null>(null);
+  const [savedToHistory, setSavedToHistory] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -70,6 +76,7 @@ export default function SingleAnalyzePage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setSavedToHistory(false);
 
     try {
       const formData = new FormData();
@@ -87,11 +94,39 @@ export default function SingleAnalyzePage() {
       }
 
       setResult(data.data);
+
+      // Auto-save to localStorage with JD metadata
+      saveAnalysis(data.data, file.name, jd);
+      setSavedToHistory(true);
     } catch (err: any) {
       setError(err.message || "Đã xảy ra lỗi khi gọi Gemini API.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportExcel = async () => {
+    if (!result || !file) return;
+    const entry: StoredAnalysis = {
+      id: "single-export",
+      cvFileName: file.name,
+      analyzedAt: new Date().toISOString(),
+      jdText: jd,
+      result,
+    };
+    await exportAnalysesToExcel([entry], jd);
+  };
+
+  const handleExportCSV = () => {
+    if (!result || !file) return;
+    const entry: StoredAnalysis = {
+      id: "single-export",
+      cvFileName: file.name,
+      analyzedAt: new Date().toISOString(),
+      jdText: jd,
+      result,
+    };
+    exportAnalysesToCSV([entry]);
   };
 
   return (
@@ -103,7 +138,7 @@ export default function SingleAnalyzePage() {
         </div>
         <h1 className="text-3xl font-bold text-white">Phân Tích 1 CV Theo JD</h1>
         <p className="text-sm text-zinc-400">
-          Upload file PDF CV của ứng viên và nhập yêu cầu công việc (JD) để AI Gemini 2.5 Flash đánh giá.
+          Upload file PDF CV của ứng viên và nhập yêu cầu công việc (JD) để AI đánh giá chuyên sâu.
         </p>
       </div>
 
@@ -198,18 +233,45 @@ export default function SingleAnalyzePage() {
       {/* Result Section */}
       {result && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <h2 className="text-xl font-bold text-white">Kết Quả Đánh Giá</h2>
-            <button
-              onClick={() => {
-                setResult(null);
-                setFile(null);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Phân tích CV khác
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {savedToHistory && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Đã lưu vào lịch sử</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition-colors shadow-sm"
+                title="Xuất file Excel (.xlsx) định dạng đẹp, bảng màu, border, 2 sheet"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Xuất Excel (.xlsx)</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-colors"
+                title="Xuất file CSV"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>CSV</span>
+              </button>
+              <button
+                onClick={() => {
+                  setResult(null);
+                  setFile(null);
+                  setSavedToHistory(false);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Phân tích khác
+              </button>
+            </div>
           </div>
           <AnalysisResultView result={{ ...result, cvFileName: file?.name }} />
         </div>
