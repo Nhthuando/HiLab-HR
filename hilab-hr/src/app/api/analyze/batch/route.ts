@@ -1,0 +1,160 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/prisma";
+import { analyzeCVWithGemini, CVAnalysisResult } from "@/lib/gemini";
+import { getOrCreateUserForSession } from "@/lib/user";
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await auth();
+    const formData = await req.formData();
+    
+    // Support both 'cvs' and 'cvs[]' keys in FormData
+    const rawFiles = [
+      ...formData.getAll("cvs"),
+      ...formData.getAll("cvs[]"),
+    ];
+
+    const cvFiles: File[] = [];
+    const seenNames = new Set<string>();
+
+    for (const item of rawFiles) {
+      if (typeof item !== "string" && item && item.name) {
+        if (!seenNames.has(item.name)) {
+          seenNames.add(item.name);
+          cvFiles.push(item as File);
+        }
+      }
+    }
+
+    const jdText = formData.get("jd") as string | null;
+
+    if (!cvFiles || cvFiles.length === 0) {
+      return NextResponse.json({ error: "Vui lòng chọn ít nhất 1 file CV (PDF)." }, { status: 400 });
+    }
+
+    if (!jdText || !jdText.trim()) {
+      return NextResponse.json({ error: "Vui lòng nhập thông tin Job Description (JD)." }, { status: 400 });
+    }
+
+    const validFiles = cvFiles.filter((f) => f.name.toLowerCase().endsWith(".pdf"));
+    if (validFiles.length === 0) {
+      return NextResponse.json({ error: "Không tìm thấy file PDF hợp lệ nào trong các file đã upload." }, { status: 400 });
+    }
+
+    // Always get or create user for session (authenticated user or Guest User)
+    const userId = await getOrCreateUserForSession(session);
+
+    let jdRecordId: string | null = null;
+    try {
+      const jdRecord = await db.jobDescription.create({
+        data: {
+          title: `Batch JD (${validFiles.length} CVs): ${jdText.slice(0, 35)}...`,
+          content: jdText,
+          userId: userId,
+        },
+      });
+      jdRecordId = jdRecord.id;
+      console.log(`✅ [Neon DB] Đã tạo Batch JobDescription ID: ${jdRecordId} cho user: ${userId}`);
+    } catch (e) {
+      console.error("❌ [Neon DB Error] Lỗi tạo DB record cho Batch JD:", e);
+    }
+
+    const results: Array<CVAnalysisResult & { cvFileName: string; id?: string; errorMsg?: string }> = [];
+
+    for (let i = 0; i < validFiles.length; i++) {
+      const cvFile = validFiles[i];
+
+      // Delay between API calls to avoid Gemini rate limits
+      if (i > 0) {
+        await delay(800);
+      }
+
+      let result: CVAnalysisResult | null = null;
+      let errorMsg: string | undefined;
+
+      // Retry up to 2 times for robustness
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const bytes = await cvFile.arrayBuffer();
+          const buffer = Buffer.from(bytes);
+          result = await analyzeCVWithGemini(buffer, cvFile.name, jdText);
+          errorMsg = undefined;
+          break; // Success
+        } catch (err: any) {
+          errorMsg = err.message || "Lỗi khi gọi Gemini API";
+          console.warn(`Lỗi phân tích file ${cvFile.name} (lần ${attempt}/2):`, errorMsg);
+          if (attempt < 2) {
+            await delay(1200);
+          }
+        }
+      }
+
+      // If both attempts failed, construct fallback result item
+      if (!result) {
+        result = {
+          candidate_name: cvFile.name.replace(/\.pdf$/i, ""),
+          overall_score: 0,
+          classification: "fail",
+          skills_analysis: { score: 0, matched: [], missing: [], details: "Lỗi phân tích" },
+          experience_analysis: { score: 0, years_total: 0, years_relevant: 0, details: "Lỗi phân tích" },
+          education_analysis: { score: 0, details: "Lỗi phân tích" },
+          language_analysis: { score: 0, details: "Lỗi phân tích" },
+          strengths: [],
+          weaknesses: [errorMsg || "Không phân tích được file này"],
+          interview_questions: [],
+          summary: `Không thể hoàn thành phân tích cho file ${cvFile.name}. Lý do: ${errorMsg}`,
+        };
+      }
+
+      // Save to Neon DB
+      let savedId: string | undefined;
+      if (jdRecordId) {
+        try {
+          const saved = await db.analysis.create({
+            data: {
+              candidateName: result.candidate_name,
+              cvFileName: cvFile.name,
+              overallScore: result.overall_score,
+              classification: result.classification,
+              skillsAnalysis: result.skills_analysis as any,
+              experienceAnalysis: result.experience_analysis as any,
+              educationAnalysis: result.education_analysis as any,
+              languageAnalysis: result.language_analysis as any,
+              strengths: result.strengths,
+              weaknesses: result.weaknesses,
+              interviewQuestions: result.interview_questions,
+              summary: result.summary,
+              jobDescriptionId: jdRecordId,
+              userId: userId,
+            },
+          });
+          savedId = saved.id;
+          console.log(`✅ [Neon DB] Đã lưu thành công batch item Analysis ID: ${savedId}`);
+        } catch (dbErr) {
+          console.error("❌ [Neon DB Error] Lỗi lưu batch item vào Neon DB:", dbErr);
+        }
+      }
+
+      results.push({ ...result, cvFileName: cvFile.name, id: savedId, errorMsg });
+    }
+
+    // Sort results by overall_score descending (highest score first)
+    results.sort((a, b) => b.overall_score - a.overall_score);
+
+    return NextResponse.json({
+      success: true,
+      total: validFiles.length,
+      processed: results.length,
+      data: results,
+    });
+  } catch (error: any) {
+    console.error("API /api/analyze/batch Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Đã xảy ra lỗi khi phân tích hàng loạt CV." },
+      { status: 500 }
+    );
+  }
+}
