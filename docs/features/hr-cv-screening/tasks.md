@@ -55,3 +55,5 @@ Danh sách chi tiết công việc triển khai cho tính năng **HR CV Screenin
 - [x] **TSK-31**: Chuẩn hóa prompt theo bằng chứng JD/CV, phân biệt must-have/preferred và hiển thị `must_have_gaps`.
 - [x] **TSK-32**: Giới hạn input/output prompt (JD 8.000 ký tự, CV text 16.000 ký tự, danh sách kết quả có giới hạn) để tối ưu quota.
 - [x] **TSK-33**: Thêm regression checks cho trường hợp hai CV có điểm thành phần khác nhau nhưng model trả cùng tổng điểm.
+
+- [x] **TSK-34**: Chuy???n theme m???c ?????nh t??? dark sang light theo guideline `notion-DESIGN.md`, ch??? ??i???u ch???nh color tokens, background, border v?? shadow m?? kh??ng thay ?????i layout hay h??nh vi UI.

@@ -91,12 +91,12 @@ export default function HistoryPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-400">
+          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600">
             <History className="w-4 h-4" />
             <span>QUẢN LÝ LỊCH SỬ</span>
           </div>
-          <h1 className="text-3xl font-bold text-white">Lịch Sử Phân Tích CV</h1>
-          <p className="text-xs text-zinc-400">
+          <h1 className="text-3xl font-bold text-stone-900">Lịch Sử Phân Tích CV</h1>
+          <p className="text-xs text-stone-600">
             Tổng hợp toàn bộ hồ sơ ứng viên đã phân tích kèm Job Description (JD) tương ứng.
           </p>
         </div>
@@ -105,7 +105,7 @@ export default function HistoryPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={loadAnalyses}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white hover:bg-stone-100 text-xs text-stone-700 transition-colors border border-stone-200 shadow-sm"
               title="Tải lại"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -122,7 +122,7 @@ export default function HistoryPage() {
             <button
               type="button"
               onClick={handleExportCSV}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-colors border border-zinc-700"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-stone-700 bg-white hover:bg-stone-100 transition-colors border border-stone-200 shadow-sm"
               title="Xuất file CSV"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -138,7 +138,7 @@ export default function HistoryPage() {
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-400">Xác nhận xóa hết?</span>
+                <span className="text-xs text-stone-600">Xác nhận xóa hết?</span>
                 <button
                   onClick={handleClearAll}
                   className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition-colors"
@@ -147,7 +147,7 @@ export default function HistoryPage() {
                 </button>
                 <button
                   onClick={() => setShowClearConfirm(false)}
-                  className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-xs font-semibold text-zinc-300 transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-stone-100 text-xs font-semibold text-stone-700 transition-colors border border-stone-200 shadow-sm"
                 >
                   Hủy
                 </button>
@@ -158,10 +158,10 @@ export default function HistoryPage() {
       </div>
 
       {analyses.length === 0 ? (
-        <div className="glass-panel p-12 rounded-2xl text-center space-y-4 border border-zinc-800">
-          <FileSearch className="w-12 h-12 text-zinc-600 mx-auto" />
-          <h2 className="text-lg font-bold text-white">Chưa có dữ liệu lịch sử</h2>
-          <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+        <div className="glass-panel p-12 rounded-2xl text-center space-y-4 border border-stone-200">
+          <FileSearch className="w-12 h-12 text-stone-400 mx-auto" />
+          <h2 className="text-lg font-bold text-stone-900">Chưa có dữ liệu lịch sử</h2>
+          <p className="text-xs text-stone-600 max-w-sm mx-auto">
             Bạn chưa thực hiện phân tích CV nào. Hãy bắt đầu phân tích 1 CV hoặc batch mode ngay!
           </p>
           <Link
@@ -172,10 +172,10 @@ export default function HistoryPage() {
           </Link>
         </div>
       ) : (
-        <div className="glass-panel rounded-2xl overflow-hidden border border-zinc-800">
+        <div className="glass-panel rounded-2xl overflow-hidden border border-stone-200">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-900/80 text-zinc-400 uppercase tracking-wider font-semibold border-b border-zinc-800">
+              <thead className="bg-stone-100/90 text-stone-500 uppercase tracking-wider font-semibold border-b border-stone-200">
                 <tr>
                   <th className="p-3.5 whitespace-nowrap">Thời gian</th>
                   <th className="p-3.5">Vị trí tuyển dụng (JD)</th>
@@ -186,56 +186,56 @@ export default function HistoryPage() {
                   <th className="p-3.5 text-right whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
+              <tbody className="divide-y divide-stone-200">
                 {analyses.map((item) => {
                   const title = item.jdTitle || (item.jdText ? extractJdInfo(item.jdText).jdTitle : "Vị trí tuyển dụng");
                   const summary = item.jdSummary || (item.jdText ? extractJdInfo(item.jdText).jdSummary : "");
 
                   return (
                     <React.Fragment key={item.id}>
-                      <tr className="hover:bg-zinc-800/40 transition-colors">
-                        <td className="p-3.5 text-zinc-400 font-mono text-[11px] whitespace-nowrap">
+                      <tr className="hover:bg-stone-50 transition-colors">
+                        <td className="p-3.5 text-stone-500 font-mono text-[11px] whitespace-nowrap">
                           {new Date(item.analyzedAt).toLocaleString("vi-VN")}
                         </td>
                         <td className="p-3.5 max-w-[220px]">
-                          <div className="flex items-center gap-1.5 text-indigo-300 font-medium text-xs truncate" title={title}>
-                            <Briefcase className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                          <div className="flex items-center gap-1.5 text-indigo-700 font-medium text-xs truncate" title={title}>
+                            <Briefcase className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
                             <span className="truncate">{title}</span>
                           </div>
                           {summary && (
-                            <div className="text-[10px] text-zinc-500 truncate mt-0.5" title={summary}>
+                            <div className="text-[10px] text-stone-500 truncate mt-0.5" title={summary}>
                               {summary}
                             </div>
                           )}
                         </td>
                         <td className="p-3.5">
-                          <div className="font-semibold text-zinc-200">
+                          <div className="font-semibold text-stone-800">
                             {item.result.candidate_name || "N/A"}
                           </div>
                           {(item.result.candidate_email || item.result.candidate_phone) && (
-                            <div className="text-[11px] text-zinc-400 flex flex-wrap items-center gap-2 mt-0.5">
+                            <div className="text-[11px] text-stone-500 flex flex-wrap items-center gap-2 mt-0.5">
                               {item.result.candidate_email && (
                                 <a
                                   href={`mailto:${item.result.candidate_email}`}
-                                  className="text-indigo-400 hover:underline truncate max-w-[150px]"
+                                  className="text-indigo-600 hover:underline truncate max-w-[150px]"
                                   title={item.result.candidate_email}
                                 >
                                   {item.result.candidate_email}
                                 </a>
                               )}
                               {item.result.candidate_phone && (
-                                <span className="font-mono text-zinc-400">{item.result.candidate_phone}</span>
+                                <span className="font-mono text-stone-500">{item.result.candidate_phone}</span>
                               )}
                             </div>
                           )}
                         </td>
-                        <td className="p-3.5 text-zinc-400 font-mono text-[11px] max-w-[160px]">
+                        <td className="p-3.5 text-stone-500 font-mono text-[11px] max-w-[160px]">
                           <div className="flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5 flex-shrink-0 text-zinc-500" />
+                            <FileText className="w-3.5 h-3.5 flex-shrink-0 text-stone-400" />
                             <span className="truncate" title={item.cvFileName}>{item.cvFileName}</span>
                           </div>
                         </td>
-                        <td className="p-3.5 font-extrabold text-sm text-indigo-400 whitespace-nowrap">
+                        <td className="p-3.5 font-extrabold text-sm text-indigo-600 whitespace-nowrap">
                           {item.result.overall_score}/100
                         </td>
                         <td className="p-3.5">{getBadge(item.result.classification)}</td>
@@ -243,7 +243,7 @@ export default function HistoryPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors whitespace-nowrap text-xs"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-stone-100 text-stone-700 transition-colors whitespace-nowrap text-xs border border-stone-200 shadow-sm"
                             >
                               <span>{expandedId === item.id ? "Ẩn" : "Chi tiết"}</span>
                               {expandedId === item.id ? (
@@ -254,7 +254,7 @@ export default function HistoryPage() {
                             </button>
                             <button
                               onClick={() => handleDelete(item.id)}
-                              className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-colors"
+                              className="p-1.5 rounded-lg text-stone-400 hover:text-rose-500 hover:bg-stone-100 transition-colors"
                               title="Xóa khỏi lịch sử"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -264,7 +264,7 @@ export default function HistoryPage() {
                       </tr>
                       {expandedId === item.id && (
                         <tr>
-                          <td colSpan={7} className="p-6 bg-zinc-950/80 border-b border-zinc-800">
+                          <td colSpan={7} className="p-6 bg-stone-50/80 border-b border-stone-200">
                             <AnalysisResultView
                               result={{
                                 ...item.result,

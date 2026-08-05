@@ -20,7 +20,7 @@ export function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 glass-panel border-b border-zinc-800">
+    <header className="sticky top-0 z-50 glass-panel border-b border-stone-200/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
@@ -28,10 +28,10 @@ export function Navbar() {
             <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <span className="font-bold text-lg tracking-tight text-white flex items-center gap-1.5">
+            <span className="font-bold text-lg tracking-tight text-stone-900 flex items-center gap-1.5">
               HiLab <span className="gradient-text">HR Agent</span>
             </span>
-            <span className="text-[10px] text-zinc-400 block -mt-1 font-mono">CV Screening AI System</span>
+            <span className="text-[10px] text-stone-500 block -mt-1 font-mono">CV Screening AI System</span>
           </div>
         </Link>
 
@@ -48,8 +48,8 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
-                  ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/30"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/80"
                   }`}
               >
                 <Icon className="w-4 h-4" />
@@ -61,8 +61,8 @@ export function Navbar() {
 
         {/* Right: status badge */}
         <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>AI Screening System</span>
           </div>
         </div>

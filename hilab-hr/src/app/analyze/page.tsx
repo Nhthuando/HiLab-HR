@@ -132,25 +132,25 @@ export default function SingleAnalyzePage() {
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div className="space-y-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-indigo-400">
+        <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600">
           <FileSearch className="w-4 h-4" />
           <span>SÀNG LỌC ĐƠN LẺ</span>
         </div>
-        <h1 className="text-3xl font-bold text-white">Phân Tích 1 CV Theo JD</h1>
-        <p className="text-sm text-zinc-400">
+        <h1 className="text-3xl font-bold text-stone-900">Phân Tích 1 CV Theo JD</h1>
+        <p className="text-sm text-stone-600">
           Upload file PDF CV của ứng viên và nhập yêu cầu công việc (JD) để AI đánh giá chuyên sâu.
         </p>
       </div>
 
       {/* Form Section */}
-      <form onSubmit={handleSubmit} className="space-y-6 glass-panel p-6 sm:p-8 rounded-2xl border border-zinc-800">
+      <form onSubmit={handleSubmit} className="space-y-6 glass-panel p-6 sm:p-8 rounded-2xl border border-stone-200">
         {/* Step 1: File Upload */}
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-zinc-200">
+          <label className="block text-sm font-semibold text-stone-800">
             1. Upload File CV ứng viên (PDF) <span className="text-rose-400">*</span>
           </label>
 
-          <div className="relative border-2 border-dashed border-zinc-700 hover:border-indigo-500/60 rounded-xl p-6 text-center cursor-pointer transition-colors bg-zinc-900/40">
+          <div className="relative border-2 border-dashed border-stone-300 hover:border-indigo-300 rounded-xl p-6 text-center cursor-pointer transition-colors bg-stone-50/80">
             <input
               type="file"
               accept=".pdf"
@@ -158,20 +158,20 @@ export default function SingleAnalyzePage() {
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
             {file ? (
-              <div className="flex items-center justify-center gap-3 text-sm text-indigo-300">
-                <FileText className="w-6 h-6 text-indigo-400" />
+              <div className="flex items-center justify-center gap-3 text-sm text-indigo-700">
+                <FileText className="w-6 h-6 text-indigo-600" />
                 <span className="font-medium">{file.name}</span>
-                <span className="text-xs text-zinc-500 font-mono">
+                <span className="text-xs text-stone-500 font-mono">
                   ({(file.size / 1024 / 1024).toFixed(2)} MB)
                 </span>
               </div>
             ) : (
               <div className="space-y-2 pointer-events-none">
-                <UploadCloud className="w-8 h-8 text-zinc-500 mx-auto" />
-                <div className="text-xs text-zinc-400">
-                  <span className="text-indigo-400 font-medium">Bấm để chọn file PDF</span> hoặc kéo thả vào đây
+                <UploadCloud className="w-8 h-8 text-stone-400 mx-auto" />
+                <div className="text-xs text-stone-600">
+                  <span className="text-indigo-600 font-medium">Bấm để chọn file PDF</span> hoặc kéo thả vào đây
                 </div>
-                <div className="text-[10px] text-zinc-500">Kích thước file tối đa 10MB</div>
+                <div className="text-[10px] text-stone-500">Kích thước file tối đa 10MB</div>
               </div>
             )}
           </div>
@@ -180,13 +180,13 @@ export default function SingleAnalyzePage() {
         {/* Step 2: JD Textarea */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-sm font-semibold text-zinc-200">
+            <label className="block text-sm font-semibold text-stone-800">
               2. Nội dung Job Description (JD) <span className="text-rose-400">*</span>
             </label>
             <button
               type="button"
               onClick={handleLoadSampleJD}
-              className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 transition-colors"
             >
               <Zap className="w-3.5 h-3.5" />
               Tải JD mẫu (Senior Frontend)
@@ -198,7 +198,7 @@ export default function SingleAnalyzePage() {
             value={jd}
             onChange={(e) => setJd(e.target.value)}
             placeholder="Dán nội dung mô tả công việc, các yêu cầu kỹ thuật, kinh nghiệm, học vấn tại đây..."
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-xs sm:text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full bg-white border border-stone-300 rounded-xl p-4 text-xs sm:text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:border-indigo-500 transition-colors shadow-sm"
           />
         </div>
 
@@ -234,10 +234,10 @@ export default function SingleAnalyzePage() {
       {result && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <h2 className="text-xl font-bold text-white">Kết Quả Đánh Giá</h2>
+            <h2 className="text-xl font-bold text-stone-900">Kết Quả Đánh Giá</h2>
             <div className="flex items-center gap-2 flex-wrap">
               {savedToHistory && (
-                <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
+                <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Đã lưu vào lịch sử</span>
                 </div>
@@ -254,7 +254,7 @@ export default function SingleAnalyzePage() {
               <button
                 type="button"
                 onClick={handleExportCSV}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-stone-100 text-xs text-stone-700 transition-colors border border-stone-200 shadow-sm"
                 title="Xuất file CSV"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -266,7 +266,7 @@ export default function SingleAnalyzePage() {
                   setFile(null);
                   setSavedToHistory(false);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-stone-100 text-xs text-stone-700 transition-colors border border-stone-200 shadow-sm"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Phân tích khác
