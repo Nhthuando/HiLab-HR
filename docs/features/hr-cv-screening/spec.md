@@ -47,7 +47,7 @@ Xây dựng giải pháp kép:
 - **Processing**:
   - Kích hoạt Python script `scripts/analyze_cv.py`.
   - Nạp rubric chấm điểm tại `resources/scoring_rubric.md`.
-  - Đọc file binary PDF gửi trực tiếp lên Gemini API (`gemini-2.5-flash`).
+  - Đọc file binary PDF gửi trực tiếp lên Gemini API (`gemini-3.1-flash-lite`).
 - **Output**: Markdown response trực tiếp trong Chat UI bao gồm: điểm tổng (0-100), phân tích từng phần, điểm mạnh/yếu, phân loại (✅ Đạt / ⚠️ Tiềm năng / ❌ Không đạt), câu hỏi phỏng vấn gợi ý.
 
 ### 3.2 Web App Specifications (`hilab-hr`)
@@ -62,7 +62,7 @@ Xây dựng giải pháp kép:
   - Radial score gauge (Điểm tổng quan 0-100).
   - Badge xếp loại (Pass / Potential / Fail).
   - Hiển thị Email và SĐT được AI trích xuất từ CV.
-  - Progress bars chi tiết 4 mục: Kỹ năng (35%), Kinh nghiệm (35%), Học vấn (15%), Ngôn ngữ & Khác (15%).
+  - Progress bars chi tiết 4 mục: Kỹ năng (35%), Kinh nghiệm (30%), Học vấn (20%), Ngôn ngữ (15%).
   - Card danh sách điểm mạnh & điểm yếu.
   - Accordion / Card danh sách câu hỏi phỏng vấn gợi ý.
 
@@ -92,7 +92,7 @@ interface StoredAnalysis {
   analyzedAt: string;   // ISO 8601 datetime
   jdTitle?: string;     // Tên vị trí tuyển dụng trích xuất từ JD
   jdSummary?: string;   // Tóm tắt 1-2 câu yêu cầu JD
-  jdText?: string;      // Nội dung text đầy đủ của JD (giới hạn 5000 ký tự)
+  jdText?: string;      // Nội dung text đầy đủ của JD (giới hạn lưu trữ 5000 ký tự)
   result: CVAnalysisResult;
 }
 
@@ -102,7 +102,7 @@ interface CVAnalysisResult {
   candidate_phone?: string;   // Trích xuất từ CV bằng Gemini / Groq / Regex
   overall_score: number;
   classification: "pass" | "potential" | "fail";
-  skills_analysis: { score: number; matched: string[]; missing: string[]; details: string };
+  skills_analysis: { score: number; matched: string[]; missing: string[]; must_have_gaps: string[]; details: string };
   experience_analysis: { score: number; years_total: number; years_relevant: number; details: string };
   education_analysis: { score: number; details: string };
   language_analysis: { score: number; details: string };
@@ -121,9 +121,12 @@ interface CVAnalysisResult {
 | `POST` | `/api/analyze/batch` | Phân tích danh sách CV | `FormData` (cvs: File[], jd: string) | `{ success: boolean, data: Array<CVAnalysisResult & { cvFileName }> }` |
 
 ### 4.3 AI Engine & Quota Optimization Architecture
-- **Text-First Strategy**: Trích xuất text từ file PDF trước qua `pdf-parse`. Nếu file chứa văn bản rõ ràng (>=60 ký tự), gửi text trực tiếp vào Gemini 2.5 Flash prompt thay vì gửi file binary PDF Base64 (tiết kiệm **60-80% token quota**).
+- **Text-First Strategy**: Trích xuất text từ file PDF trước qua `pdf-parse`. Nếu file chứa văn bản rõ ràng (>=60 ký tự), gửi text trực tiếp vào Gemini 3.1 Flash Lite prompt thay vì gửi file binary PDF Base64 (tiết kiệm **60-80% token quota**).
 - **Vision/InlineData Fallback**: Chỉ gửi file base64 PDF inlineData khi PDF là bản scan/ảnh không trích xuất được text.
 - **Failover Provider**: Tự động fallback sang Groq (`llama-3.3-70b-versatile`) khi Gemini API đạt ngưỡng rate limit (HTTP 429) hoặc quota exhausted.
+- **Deterministic Scoring**: Backend luôn tính `overall_score = round(skills*0.35 + experience*0.30 + education*0.20 + language*0.15)` từ 4 điểm thành phần; không tin tổng điểm hoặc classification do model trả về.
+- **Evidence-Based Matching**: Prompt yêu cầu tách must-have/preferred, trả `must_have_gaps`, và phạt mạnh yêu cầu bắt buộc thiếu nhưng không loại cứng ứng viên.
+- **Prompt Budget**: JD gửi model tối đa 8.000 ký tự, CV text trích xuất tối đa 16.000 ký tự; output giới hạn số lượng danh sách để giảm quota.
 
 ---
 

@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
           candidate_phone: "",
           overall_score: 0,
           classification: "fail",
-          skills_analysis: { score: 0, matched: [], missing: [], details: "Lỗi phân tích" },
+          skills_analysis: { score: 0, matched: [], missing: [], must_have_gaps: [], details: "Lỗi phân tích" },
           experience_analysis: { score: 0, years_total: 0, years_relevant: 0, details: "Lỗi phân tích" },
           education_analysis: { score: 0, details: "Lỗi phân tích" },
           language_analysis: { score: 0, details: "Lỗi phân tích" },

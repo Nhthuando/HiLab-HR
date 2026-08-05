@@ -11,16 +11,16 @@ Kế hoạch triển khai kỹ thuật, kiến trúc và quyết định thiết
 | **Framework** | Next.js 15 (App Router) + React 19 | Hiệu năng cao, Server Components, API routes tích hợp sẵn. |
 | **Styling & UI** | Tailwind CSS v4 + Shadcn/UI + Lucide Icons | Xây dựng giao diện Dark mode glassmorphism hiện đại, responsive. |
 | **History Storage** | Browser LocalStorage | Lưu lịch sử phân tích phía client, không cần database hay authentication. |
-| **AI Model SDK** | `@google/genai` (Gemini 2.5 Flash) | Hỗ trợ đọc trực tiếp PDF binary, xử lý tốc độ cao và chi phí tối ưu. |
+| **AI Model SDK** | `@google/genai` (Gemini 3.1 Flash Lite) | Hỗ trợ đọc trực tiếp PDF binary, xử lý tốc độ cao và chi phí tối ưu. |
 | **Deployment** | Vercel | Tích hợp liền mạch với Next.js. |
 
 ---
 
 ## 2. Architectural Decisions & Rationale (ADRs)
 
-### ADR-1: Native PDF Binary Processing với Gemini 2.5 Flash
-- **Quyết định**: Gửi trực tiếp Buffer file PDF dạng base64/binary lên Gemini API server-side mà không sử dụng các thư viện parse text PDF trung gian (như `pdf-parse`).
-- **Lý do**: Gemini 2.5 Flash hỗ trợ OCR và đọc hiểu layout bản in PDF native (bao gồm bảng biểu, cột trình bày phức tạp trong CV), giúp kết quả phân tích chính xác hơn nhiều so với việc chỉ trích xuất thô dạng text.
+### ADR-1: Native PDF Binary Processing với Gemini 3.1 Flash Lite
+- **Quyết định**: Ưu tiên trích xuất text bằng `pdf-parse` và gửi text có giới hạn; chỉ gửi Buffer PDF dạng base64/binary khi PDF scan hoặc không có đủ text.
+- **Lý do**: Text-first giảm đáng kể token quota với CV dạng text, còn inline PDF giữ khả năng OCR/layout cho CV scan.
 
 ### ADR-2: Xử lý hàng chờ Sequential cho Batch Upload Mode
 - **Quyết định**: Khi HR chọn batch upload nhiều CV, API và client sẽ gửi/xử lý từng CV nối tiếp (sequential) kèm progress bar cập nhật theo thời gian thực thay vì gọi parallel song song.
@@ -33,6 +33,10 @@ Kế hoạch triển khai kỹ thuật, kiến trúc và quyết định thiết
 ### ADR-5: LocalStorage cho History thay vì Database
 - **Quyết định**: Lưu lịch sử phân tích trong `localStorage` của trình duyệt thay vì Neon PostgreSQL. Không có authentication.
 - **Lý do**: Đơn giản hóa triển khai, không cần cấu hình OAuth/DB, phù hợp cho demo sprint. Phân tích vẫn được thực hiện server-side (Next.js Route Handler + Gemini API), chỉ có việc lưu kết quả là client-side.
+
+### ADR-6: Server-Owned Weighted Scoring và Compact Prompt
+- **Quyết định**: Model chỉ trả điểm 4 mục và bằng chứng; server luôn tính tổng theo `35%/30%/20%/15%`, tự suy ra classification, đồng thời giới hạn JD 8.000 ký tự và CV text 16.000 ký tự.
+- **Lý do**: Loại bỏ sai lệch khi model tự tính tổng, giúp ranking nhất quán giữa batch/single và giảm input/output token mà không cần gọi model lần hai.
 
 ---
 

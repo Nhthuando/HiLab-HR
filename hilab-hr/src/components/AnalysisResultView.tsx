@@ -66,7 +66,7 @@ export function AnalysisResultView({ result }: Props) {
     setTimeout(() => setCopiedQuestionIndex(null), 2000);
   };
 
-  const skills = result?.skills_analysis || { score: 0, matched: [], missing: [], details: "" };
+  const skills = result?.skills_analysis || { score: 0, matched: [], missing: [], must_have_gaps: [], details: "" };
   const experience = result?.experience_analysis || { score: 0, years_total: 0, years_relevant: 0, details: "" };
   const education = result?.education_analysis || { score: 0, details: "" };
   const language = result?.language_analysis || { score: 0, details: "" };
@@ -105,6 +105,7 @@ export function AnalysisResultView({ result }: Props) {
   const overallScore = typeof result?.overall_score === "number" ? result.overall_score : 0;
   const matchedSkills = Array.isArray(skills.matched) ? skills.matched : [];
   const missingSkills = Array.isArray(skills.missing) ? skills.missing : [];
+  const mustHaveGaps = Array.isArray(skills.must_have_gaps) ? skills.must_have_gaps : [];
   const strengths = Array.isArray(result?.strengths) ? result.strengths : [];
   const weaknesses = Array.isArray(result?.weaknesses) ? result.weaknesses : [];
   const interviewQuestions = Array.isArray(result?.interview_questions) ? result.interview_questions : [];
@@ -264,6 +265,25 @@ export function AnalysisResultView({ result }: Props) {
           </div>
         </div>
       </div>
+
+      {mustHaveGaps.length > 0 && (
+        <div className="glass-card rounded-xl p-6 border border-amber-500/20 space-y-3">
+          <h3 className="text-sm font-semibold text-amber-400 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            Yêu Cầu Bắt Buộc Chưa Có Bằng Chứng ({mustHaveGaps.length})
+          </h3>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {mustHaveGaps.map((gap) => (
+              <span
+                key={gap}
+                className="px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium"
+              >
+                ! {gap}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Strengths & Weaknesses */}
       <div className="grid md:grid-cols-2 gap-6">

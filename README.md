@@ -1,6 +1,6 @@
 # HiLab-HR — AI-Powered CV Screening System
 
-Hệ thống sàng lọc và đánh giá CV ứng viên tự động bằng AI (Google Gemini 2.5 Flash), được thiết kế kép bao gồm **Claude/Antigravity Skill** chạy trong IDE và **Next.js Fullstack Web Application** cho bộ phận HR.
+Hệ thống sàng lọc và đánh giá CV ứng viên tự động bằng AI (Google Gemini 3.1 Flash Lite), được thiết kế kép bao gồm **Claude/Antigravity Skill** chạy trong IDE và **Next.js Fullstack Web Application** cho bộ phận HR.
 
 ---
 

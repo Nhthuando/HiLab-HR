@@ -10,7 +10,7 @@ Tài liệu hướng dẫn và quy tắc dành cho các AI Agent (Antigravity, C
 - **Styling**: Tailwind CSS v4, Shadcn/UI, Lucide Icons (Dark mode glassmorphism)
 - **Database**: Neon Serverless PostgreSQL + Prisma ORM
 - **Auth**: NextAuth.js v5 (Auth.js) với Google OAuth 2.0
-- **AI Integration**: Google Gemini 2.5 Flash (`@google/genai`)
+- **AI Integration**: Google Gemini 3.1 Flash Lite (`@google/genai`)
 
 ---
 

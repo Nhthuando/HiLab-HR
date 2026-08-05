@@ -47,5 +47,11 @@ Danh sách chi tiết công việc triển khai cho tính năng **HR CV Screenin
 ### 2.5 Excel Reporting, JD Tracking & Quota Optimization
 - [x] **TSK-26**: Tích hợp `exceljs` và xây dựng module `src/lib/excelExport.ts` định dạng bảng tính cao cấp, border tinh tế, màu sắc xếp loại, sheet tóm tắt JD.
 - [x] **TSK-27**: Nâng cấp `StoredAnalysis` trong `src/lib/localStorage.ts` hỗ trợ lưu `jdTitle`, `jdSummary`, `jdText` và cập nhật file CSV.
-- [x] **TSK-28**: Tối ưu hóa AI Quota theo chiến lược Text-First (`src/lib/gemini.ts`) giúp giảm 60-80% token tiêu thụ khi gọi Gemini 2.5 Flash.
+- [x] **TSK-28**: Tối ưu hóa AI Quota theo chiến lược Text-First (`src/lib/gemini.ts`) giúp giảm 60-80% token tiêu thụ khi gọi Gemini 3.1 Flash Lite.
 - [x] **TSK-29**: Cập nhật toàn diện giao diện (`/analyze`, `/analyze/batch`, `/history`) tích hợp nút Xuất Excel/CSV và hiển thị tag JD.
+
+### 2.6 Scoring Consistency & Prompt Quality
+- [x] **TSK-30**: Tách module scoring deterministic, luôn tính tổng theo trọng số 35/30/20/15 và suy ra classification từ tổng điểm.
+- [x] **TSK-31**: Chuẩn hóa prompt theo bằng chứng JD/CV, phân biệt must-have/preferred và hiển thị `must_have_gaps`.
+- [x] **TSK-32**: Giới hạn input/output prompt (JD 8.000 ký tự, CV text 16.000 ký tự, danh sách kết quả có giới hạn) để tối ưu quota.
+- [x] **TSK-33**: Thêm regression checks cho trường hợp hai CV có điểm thành phần khác nhau nhưng model trả cùng tổng điểm.

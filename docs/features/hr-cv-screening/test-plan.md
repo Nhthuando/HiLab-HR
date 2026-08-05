@@ -52,6 +52,10 @@ Kế hoạch kiểm thử (Quality Assurance & Test Plan) cho tính năng **HR C
 - **TC-WA-11**: Phân tích file PDF có text -> AI trích xuất text trước và gửi dạng text payload (tiết kiệm ~60-80% token quota so với base64 PDF inlineData).
 - **TC-WA-12**: Phân tích file PDF scan (không có text) -> Tự động fallback sang gửi base64 PDF inlineData để Gemini OCR và phân tích.
 - **TC-WA-13**: Khi Gemini API gặp lỗi quota / 429 -> Tự động kích hoạt Groq fallback (`llama-3.3-70b-versatile`) đảm bảo không đứt gãy trải nghiệm.
+- **TC-WA-14**: Model trả `overall_score` sai hoặc giống CV khác -> Backend bỏ qua tổng đó, tính lại từ 4 điểm thành phần; `(60,20,90,70)` = `56`, `(40,20,80,50)` = `44`.
+- **TC-WA-15**: Điểm tổng tại biên `49/50/69/70` -> classification lần lượt `fail/potential/potential/pass`.
+- **TC-WA-16**: CV thiếu must-have -> `must_have_gaps` hiển thị cho HR và điểm mục liên quan bị giảm; không tự động hard-reject.
+- **TC-WA-17**: JD/CV vượt giới hạn prompt -> text được rút gọn theo giới hạn JD 8.000 và CV 16.000 ký tự trước khi gửi model.
 
 ---
 

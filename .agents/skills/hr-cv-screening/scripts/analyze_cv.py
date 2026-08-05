@@ -22,6 +22,8 @@ except ImportError:
     print("❌ Chưa cài thư viện google-genai. Chạy: pip install google-genai")
     sys.exit(1)
 
+from scoring import calculate_overall_score, classify_score, normalize_score
+
 
 # ─── Schema cho structured output ───────────────────────────────────────────────
 
@@ -63,9 +65,14 @@ ANALYSIS_SCHEMA = {
                     "items": {"type": "string"},
                     "description": "Danh sách kỹ năng thiếu so với JD"
                 },
+                "must_have_gaps": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Danh sách yêu cầu bắt buộc trong JD mà CV chưa có bằng chứng"
+                },
                 "details": {"type": "string", "description": "Nhận xét chi tiết về kỹ năng"}
             },
-            "required": ["score", "matched", "missing", "details"]
+            "required": ["score", "matched", "missing", "must_have_gaps", "details"]
         },
         "experience_analysis": {
             "type": "object",
@@ -134,6 +141,35 @@ def load_scoring_rubric() -> str:
 
 # ─── Gemini API ──────────────────────────────────────────────────────────────────
 
+COMPACT_SCORING_RULES = """
+Chỉ dùng bằng chứng có trong JD và CV; không suy diễn chỉ vì thấy từ khóa liên quan.
+Tách JD thành must-have và preferred. Chấm kỹ năng 35%, kinh nghiệm 30%, học vấn 20%,
+ngôn ngữ 15%, mỗi mục 0-100. Bằng chứng trực tiếp tốt hơn bằng chứng chuyển đổi;
+không có bằng chứng thì không coi là đáp ứng. Thiếu must-have giảm mạnh điểm liên quan
+nhưng không loại cứng. Ứng dụng sẽ tự tính overall_score và classification từ 4 điểm con.
+Trả tối đa 12 matched, 12 missing, 12 must_have_gaps, 5 strengths, 5 weaknesses,
+5 câu hỏi; nhận xét ngắn gọn, có căn cứ, bằng tiếng Việt.
+""".strip()
+
+
+def compact_text(text: str, max_chars: int) -> str:
+    """Chuẩn hóa và giới hạn input để tránh gửi prompt không có giới hạn."""
+    normalized = " ".join(text.split())
+    if len(normalized) <= max_chars:
+        return normalized
+    marker = " ... [đã rút gọn để tiết kiệm quota] ... "
+    content_length = max(0, max_chars - len(marker))
+    head = int(content_length * 0.7)
+    tail = content_length - head
+    return f"{normalized[:head]}{marker}{normalized[-tail:]}"
+
+
+def cap_list(value, limit: int):
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()][:limit]
+
+
 def create_client() -> genai.Client:
     """Tạo Gemini API client"""
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -178,19 +214,19 @@ def analyze_single_cv(client: genai.Client, cv_path: str, jd_text: str, rubric: 
     prompt = f"""Bạn là chuyên gia tuyển dụng HR. Hãy phân tích CV ứng viên dựa trên Job Description (JD) bên dưới.
 
 ## Job Description (JD):
-{jd_text}
+{compact_text(jd_text, 8000)}
 
 ## Tiêu chí chấm điểm:
-{rubric if rubric else "Dùng tiêu chí mặc định: Kỹ năng (35%), Kinh nghiệm (30%), Học vấn (20%), Ngôn ngữ (15%)"}
+{COMPACT_SCORING_RULES}
 
 ## Yêu cầu BẮT BUỘC:
 1. Đọc kỹ CV đính kèm (file: {cv_filename}), bao gồm phần Header và thông tin liên hệ.
 2. Trích xuất tên ứng viên (candidate_name).
 3. BẮT BUỘC trích xuất chính xác email ứng viên (candidate_email) nếu có trong CV, nếu không tìm thấy để chuỗi rỗng "".
 4. BẮT BUỘC trích xuất chính xác số điện thoại ứng viên (candidate_phone) nếu có trong CV (ví dụ: 0385 591 447, 0365472162, +84...), nếu không tìm thấy để chuỗi rỗng "".
-5. So sánh CV với JD và chấm điểm từng hạng mục (0-100).
-6. Tính điểm tổng theo trọng số.
-7. Xếp loại: pass (>=70), potential (50-69), fail (<50).
+5. So sánh CV với JD và chấm điểm từng hạng mục (0-100), phân biệt must-have và preferred.
+6. Trả về must_have_gaps cho yêu cầu bắt buộc chưa có bằng chứng.
+7. Không tin overall_score/classification do model tự tính; ứng dụng sẽ tính lại từ 4 điểm con.
 8. Liệt kê điểm mạnh, điểm yếu.
 9. Gợi ý 5 câu hỏi phỏng vấn bằng tiếng Việt.
 10. Viết tóm tắt đánh giá bằng tiếng Việt.
@@ -198,7 +234,7 @@ def analyze_single_cv(client: genai.Client, cv_path: str, jd_text: str, rubric: 
 Trả lời bằng tiếng Việt. Hãy khách quan và chi tiết."""
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite",
         contents=[
             types.Part.from_bytes(data=cv_bytes, mime_type=mime_type),
             prompt
@@ -212,6 +248,24 @@ Trả lời bằng tiếng Việt. Hãy khách quan và chi tiết."""
 
     try:
         result = json.loads(response.text)
+        skills_score = normalize_score(result.get("skills_analysis", {}).get("score"))
+        experience_score = normalize_score(result.get("experience_analysis", {}).get("score"))
+        education_score = normalize_score(result.get("education_analysis", {}).get("score"))
+        language_score = normalize_score(result.get("language_analysis", {}).get("score"))
+        result.setdefault("skills_analysis", {})["score"] = skills_score
+        result.setdefault("experience_analysis", {})["score"] = experience_score
+        result.setdefault("education_analysis", {})["score"] = education_score
+        result.setdefault("language_analysis", {})["score"] = language_score
+        result["skills_analysis"]["matched"] = cap_list(result["skills_analysis"].get("matched"), 12)
+        result["skills_analysis"]["missing"] = cap_list(result["skills_analysis"].get("missing"), 12)
+        result["skills_analysis"]["must_have_gaps"] = cap_list(result["skills_analysis"].get("must_have_gaps"), 12)
+        result["strengths"] = cap_list(result.get("strengths"), 5)
+        result["weaknesses"] = cap_list(result.get("weaknesses"), 5)
+        result["interview_questions"] = cap_list(result.get("interview_questions"), 5)
+        result["overall_score"] = calculate_overall_score(
+            skills_score, experience_score, education_score, language_score
+        )
+        result["classification"] = classify_score(result["overall_score"])
         result["cv_file"] = cv_filename
         return result
     except json.JSONDecodeError:
@@ -267,6 +321,8 @@ def format_single_result(result: dict) -> str:
         output += f"\n**Kỹ năng khớp JD**: {', '.join(skills['matched'])}\n"
     if skills.get("missing"):
         output += f"**Kỹ năng thiếu**: {', '.join(skills['missing'])}\n"
+    if skills.get("must_have_gaps"):
+        output += f"**Yêu cầu bắt buộc chưa có bằng chứng**: {', '.join(skills['must_have_gaps'])}\n"
 
     # Điểm mạnh
     output += "\n### ✅ Điểm mạnh\n"
@@ -404,4 +460,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

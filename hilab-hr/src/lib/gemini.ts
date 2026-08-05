@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import Groq from "groq-sdk";
+import { calculateOverallScore, classifyScore, normalizeScore } from "./scoring";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ export interface CVAnalysisResult {
     score: number;
     matched: string[];
     missing: string[];
+    must_have_gaps: string[];
     details: string;
   };
   experience_analysis: {
@@ -63,9 +65,14 @@ const analysisSchema: Schema = {
           items: { type: Type.STRING },
           description: "Danh sách kỹ năng thiếu so với JD"
         },
+        must_have_gaps: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "Danh sách yêu cầu bắt buộc trong JD mà CV chưa có bằng chứng"
+        },
         details: { type: Type.STRING, description: "Nhận xét chi tiết về kỹ năng" }
       },
-      required: ["score", "matched", "missing", "details"]
+      required: ["score", "matched", "missing", "must_have_gaps", "details"]
     },
     experience_analysis: {
       type: Type.OBJECT,
@@ -195,6 +202,33 @@ export function extractContactInfoFromText(text: string): { email: string; phone
 
 // ─── Shared prompt builder (Gemini) ─────────────────────────────────────────
 
+const MAX_JD_CHARS = 8_000;
+const MAX_CV_TEXT_CHARS = 16_000;
+const MAX_LIST_ITEMS = 12;
+
+function compactText(text: string, maxChars: number): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) return normalized;
+
+  const marker = " ... [đã rút gọn để tiết kiệm quota] ... ";
+  const contentLength = Math.max(0, maxChars - marker.length);
+  const headLength = Math.floor(contentLength * 0.7);
+  const tailLength = contentLength - headLength;
+  return `${normalized.slice(0, headLength)}${marker}${normalized.slice(-tailLength)}`;
+}
+
+const COMPACT_SCORING_RULES = `
+Quy tắc đánh giá:
+- Chỉ dùng bằng chứng có trong JD và CV; không suy diễn chỉ vì thấy từ khóa liên quan.
+- Tách yêu cầu JD thành must-have (bắt buộc) và preferred (ưu tiên).
+- Chấm riêng 4 mục theo thang 0-100: kỹ năng 35%, kinh nghiệm 30%, học vấn 20%, ngôn ngữ 15%.
+- Bằng chứng trực tiếp tốt hơn bằng chứng chuyển đổi; không có bằng chứng cho một yêu cầu thì không được coi là đã đáp ứng.
+- Thiếu must-have làm giảm mạnh điểm mục liên quan nhưng không loại cứng ứng viên.
+- Ứng dụng sẽ tự tính overall_score và classification từ 4 điểm thành phần; không tự bịa hoặc ưu tiên tổng điểm.
+- Chỉ trả tối đa 12 matched, 12 missing, 12 must_have_gaps, 5 strengths, 5 weaknesses và 5 interview_questions.
+- Viết nhận xét và summary ngắn gọn, bằng tiếng Việt, có căn cứ từ CV.
+`;
+
 function buildPrompt(
   jdText: string,
   fileName: string,
@@ -208,35 +242,24 @@ function buildPrompt(
     ? `\n(Gợi ý thông tin liên hệ nhận diện từ file: ${hints.join(", ")})`
     : "";
 
+  const boundedJd = compactText(jdText, MAX_JD_CHARS);
+  const boundedCvText = cvText ? compactText(cvText, MAX_CV_TEXT_CHARS) : "";
   const cvContentBlock =
-    cvText && cvText.trim().length >= 60
-      ? `\n## Nội dung CV trích xuất từ file (${fileName}):\n${cvText}\n`
+    boundedCvText && boundedCvText.length >= 60
+      ? `\n## Nội dung CV trích xuất từ file (${fileName}):\n${boundedCvText}\n`
       : `\n(Đọc kỹ toàn bộ nội dung từ file đính kèm: ${fileName})\n`;
 
-  return `Bạn là chuyên gia tuyển dụng HR cao cấp. Hãy phân tích CV ứng viên dựa trên Job Description (JD) bên dưới.
+  return `Bạn là chuyên gia tuyển dụng HR. Hãy sàng lọc CV theo JD.
 
 ## Job Description (JD):
-${jdText}
+${boundedJd}
 
-## Tiêu chí chấm điểm:
-- Kỹ năng (35%): Mức độ tương thích kỹ năng với JD.
-- Kinh nghiệm (30%): Số năm kinh nghiệm và mức độ liên quan.
-- Học vấn (20%): Trình độ học vấn và chuyên ngành.
-- Ngôn ngữ (15%): Trình độ ngoại ngữ đáp ứng yêu cầu.
+${COMPACT_SCORING_RULES}
 ${cvContentBlock}
-## Yêu cầu BẮT BUỘC:
-1. Đọc kỹ file CV (${fileName}), bao gồm toàn bộ Header và phần thông tin liên hệ.
-2. Trích xuất tên ứng viên (candidate_name).
-3. BẮT BUỘC trích xuất chính xác địa chỉ email ứng viên (candidate_email) nếu có trong CV, nếu không tìm thấy để chuỗi rỗng "".${contactHint}
-4. BẮT BUỘC trích xuất chính xác số điện thoại ứng viên (candidate_phone) nếu có trong CV (ví dụ: 0385 591 447, 0365472162, +84...), nếu không tìm thấy để chuỗi rỗng "".
-5. Chấm điểm chi tiết từng mục (0-100) và tính điểm tổng overall_score.
-6. Ghi rõ kỹ năng khớp (matched) và thiếu (missing).
-7. Xếp loại classification: "pass" (>=70), "potential" (50-69), "fail" (<50).
-8. Đưa ra danh sách điểm mạnh, điểm yếu.
-9. Đề xuất 5 câu hỏi phỏng vấn thực tế bằng tiếng Việt.
-10. Viết bài tóm tắt nhận xét chuyên sâu bằng tiếng Việt.
-
-Trả về kết quả CHÍNH XÁC dưới dạng JSON theo schema đã định nghĩa.`;
+## Trích xuất và output:
+- Đọc header để lấy candidate_name, candidate_email và candidate_phone; nếu không có thì trả chuỗi rỗng.${contactHint}
+- Trả score và details cho đủ 4 mục; ghi rõ matched, missing và must_have_gaps.
+- Trả JSON đúng schema, không markdown và không giải thích ngoài JSON.`;
 }
 
 // ─── Dedicated prompt builder for Groq (Embeds JSON structure directly) ────
@@ -254,75 +277,14 @@ function buildGroqPrompt(
     ? `\n(Gợi ý thông tin liên hệ nhận diện từ file: ${hints.join(", ")})`
     : "";
 
-  const system = `Bạn là chuyên gia tuyển dụng HR cao cấp. Bạn có nhiệm vụ phân tích CV và so sánh với Job Description (JD).
-BẠN BẮT BUỘC PHẢI TRẢ VỀ KẾT QUẢ DƯỚI DẠNG 1 ĐỐI TƯỢNG JSON DUY NHẤT theo đúng 100% cấu trúc dưới đây (không markdown fence, không giải thích ngoài JSON):
+  const boundedJd = compactText(jdText, MAX_JD_CHARS);
+  const boundedCvText = compactText(cvText, MAX_CV_TEXT_CHARS);
+  const system = `Bạn là chuyên gia tuyển dụng HR. Trả về đúng một object JSON, không markdown và không giải thích ngoài JSON.
+Các field bắt buộc: candidate_name, candidate_email, candidate_phone, overall_score, classification, skills_analysis, experience_analysis, education_analysis, language_analysis, strengths, weaknesses, interview_questions, summary.
+skills_analysis phải có score, matched, missing, must_have_gaps và details. experience_analysis phải có score, years_total, years_relevant và details. education_analysis và language_analysis phải có score và details.
+${COMPACT_SCORING_RULES}`;
 
-{
-  "candidate_name": "Tên ứng viên trích từ CV",
-  "candidate_email": "Địa chỉ email (hoặc chuỗi rỗng)",
-  "candidate_phone": "Số điện thoại (hoặc chuỗi rỗng)",
-  "overall_score": 85,
-  "classification": "pass",
-  "skills_analysis": {
-    "score": 85,
-    "matched": ["Kỹ năng phù hợp 1", "Kỹ năng phù hợp 2"],
-    "missing": ["Kỹ năng còn thiếu"],
-    "details": "Đánh giá chi tiết về các kỹ năng kỹ thuật, công nghệ và chuyên môn so với JD"
-  },
-  "experience_analysis": {
-    "score": 80,
-    "years_total": 3,
-    "years_relevant": 2.5,
-    "details": "Đánh giá chi tiết về số năm kinh nghiệm, các dự án đã làm và mức độ liên quan tới vị trí"
-  },
-  "education_analysis": {
-    "score": 90,
-    "details": "Đánh giá chi tiết về trình độ học vấn, trường đại học/cao đẳng, chuyên ngành và các chứng chỉ"
-  },
-  "language_analysis": {
-    "score": 75,
-    "details": "Đánh giá chi tiết về trình độ ngoại ngữ (Tiếng Anh, v.v.) và khả năng giao tiếp"
-  },
-  "strengths": [
-    "Điểm mạnh nổi bật 1",
-    "Điểm mạnh nổi bật 2"
-  ],
-  "weaknesses": [
-    "Điểm cần cải thiện 1",
-    "Điểm cần cải thiện 2"
-  ],
-  "interview_questions": [
-    "1. Câu hỏi phỏng vấn chuyên môn 1?",
-    "2. Câu hỏi phỏng vấn tình huống 2?",
-    "3. Câu hỏi phỏng vấn kinh nghiệm 3?",
-    "4. Câu hỏi phỏng vấn kỹ năng mềm 4?",
-    "5. Câu hỏi phỏng vấn định hướng 5?"
-  ],
-  "summary": "Tóm tắt tổng quan đánh giá ứng viên và đề xuất cho HR..."
-}`;
-
-  const user = `Hãy phân tích CV sau đây dựa trên Job Description (JD):
-
-## 1. Job Description (JD):
-${jdText}
-
-## 2. Tiêu chí chấm điểm:
-- Kỹ năng (35%): Mức độ tương thích kỹ năng với JD.
-- Kinh nghiệm (30%): Số năm kinh nghiệm và mức độ liên quan.
-- Học vấn (20%): Trình độ học vấn và chuyên ngành.
-- Ngôn ngữ (15%): Trình độ ngoại ngữ đáp ứng yêu cầu.
-- Xếp loại classification: "pass" (>=70), "potential" (50-69), "fail" (<50).
-
-## 3. Thông tin file CV: ${fileName}${contactHint}
-
-## 4. Nội dung CV trích xuất:
-${cvText}
-
-## YÊU CẦU BẮT BUỘC:
-- Bắt buộc phân tích ĐẦY ĐỦ cả 4 mục: skills_analysis, experience_analysis, education_analysis, language_analysis.
-- Mỗi mục phải có điểm (score từ 0-100) và nhận xét (details).
-- Trích xuất chính xác candidate_name, candidate_email, candidate_phone.
-- Trả về đúng JSON thuần túy theo cấu trúc đã định nghĩa.`;
+  const user = `## JD\n${boundedJd}\n\n## CV (${fileName})${contactHint}\n${boundedCvText}\n\nTrích xuất chính xác thông tin liên hệ nếu có. Phân tích đủ 4 mục. Trả lời bằng tiếng Việt.`;
 
   return { system, user };
 }
@@ -331,21 +293,7 @@ ${cvText}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseScoreValue(val: any, fallback = 0): number {
-  if (typeof val === "number" && !isNaN(val)) {
-    if (val > 0 && val <= 1) return Math.round(val * 100);
-    return Math.round(Math.max(0, Math.min(100, val)));
-  }
-  if (typeof val === "string") {
-    const match = val.match(/(\d+(?:\.\d+)?)/);
-    if (match) {
-      const num = parseFloat(match[1]);
-      if (num > 0 && num <= 1 && (val.includes("%") || !val.includes("/"))) {
-        return Math.round(num * 100);
-      }
-      return Math.round(Math.max(0, Math.min(100, num)));
-    }
-  }
-  return fallback;
+  return normalizeScore(val, fallback);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -372,6 +320,10 @@ function parseStringArray(val: any): string[] {
       .filter((s) => s.length > 0);
   }
   return [];
+}
+
+function capList(values: string[], max = MAX_LIST_ITEMS): string[] {
+  return values.slice(0, max);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -436,16 +388,20 @@ function parseJsonResult(raw: string): CVAnalysisResult {
     parsed.skills_score ??
     parsed.skill_score ??
     parsed.skills_point,
-    70
+    0
   );
 
-  const skillsMatched = parseStringArray(
+  const skillsMatched = capList(parseStringArray(
     rawSkills.matched ?? rawSkills.matched_skills ?? rawSkills.phu_hop ?? rawSkills.da_co
-  );
+  ));
 
-  const skillsMissing = parseStringArray(
+  const skillsMissing = capList(parseStringArray(
     rawSkills.missing ?? rawSkills.missing_skills ?? rawSkills.thieu ?? rawSkills.chua_co
-  );
+  ));
+
+  const mustHaveGaps = capList(parseStringArray(
+    rawSkills.must_have_gaps ?? rawSkills.missing_must_have ?? rawSkills.required_gaps
+  ));
 
   const skillsDetails = parseDetailsString(
     rawSkills,
@@ -470,7 +426,7 @@ function parseJsonResult(raw: string): CVAnalysisResult {
     parsed.experience_score ??
     parsed.kinh_nghiem_score ??
     parsed.experience_point,
-    70
+    0
   );
 
   const yearsTotal = parseNumberValue(
@@ -504,7 +460,7 @@ function parseJsonResult(raw: string): CVAnalysisResult {
     parsed.education_score ??
     parsed.hoc_van_score ??
     parsed.education_point,
-    75
+    0
   );
 
   const eduDetails = parseDetailsString(
@@ -531,7 +487,7 @@ function parseJsonResult(raw: string): CVAnalysisResult {
     parsed.languages_score ??
     parsed.ngon_ngu_score ??
     parsed.language_point,
-    70
+    0
   );
 
   const langDetails = parseDetailsString(
@@ -540,47 +496,13 @@ function parseJsonResult(raw: string): CVAnalysisResult {
   );
 
   // 5. Overall score & Classification
-  let score = parseScoreValue(
-    parsed.overall_score ?? parsed.total_score ?? parsed.score ?? parsed.diem_tong,
-    0
-  );
-
-  if (score === 0) {
-    score = Math.round(
-      skillsScore * 0.35 +
-      expScore * 0.30 +
-      eduScore * 0.20 +
-      langScore * 0.15
-    );
-  }
-
-  const rawClassification = String(
-    parsed.classification || parsed.xep_loai || parsed.result || ""
-  ).toLowerCase();
-
-  let classification: "pass" | "potential" | "fail";
-  if (
-    rawClassification.includes("pass") ||
-    rawClassification.includes("đạt") ||
-    rawClassification.includes("dat")
-  ) {
-    classification = "pass";
-  } else if (
-    rawClassification.includes("potential") ||
-    rawClassification.includes("tiềm") ||
-    rawClassification.includes("tiem")
-  ) {
-    classification = "potential";
-  } else if (
-    rawClassification.includes("fail") ||
-    rawClassification.includes("loại") ||
-    rawClassification.includes("loai") ||
-    rawClassification.includes("không đạt")
-  ) {
-    classification = "fail";
-  } else {
-    classification = score >= 70 ? "pass" : score >= 50 ? "potential" : "fail";
-  }
+  const score = calculateOverallScore({
+    skills: skillsScore,
+    experience: expScore,
+    education: eduScore,
+    language: langScore,
+  });
+  const classification = classifyScore(score);
 
   // 6. Candidate info & Lists
   const candidate_name =
@@ -602,23 +524,23 @@ function parseJsonResult(raw: string): CVAnalysisResult {
     parsed.sdt ||
     "";
 
-  const strengths = parseStringArray(
+  const strengths = capList(parseStringArray(
     parsed.strengths ?? parsed.diem_manh ?? parsed.pros ?? parsed.advantages
-  );
+  ), 5);
   if (strengths.length === 0) {
     strengths.push("Có nền tảng chuyên môn và kỹ năng phù hợp với vị trí.");
   }
 
-  const weaknesses = parseStringArray(
+  const weaknesses = capList(parseStringArray(
     parsed.weaknesses ?? parsed.diem_yeu ?? parsed.cons ?? parsed.disadvantages
-  );
+  ), 5);
   if (weaknesses.length === 0) {
     weaknesses.push("Cần kiểm tra thêm về độ sâu kinh nghiệm thực tế qua phỏng vấn.");
   }
 
-  const interview_questions = parseStringArray(
+  const interview_questions = capList(parseStringArray(
     parsed.interview_questions ?? parsed.questions ?? parsed.cau_hoi_phong_van
-  );
+  ), 5);
   if (interview_questions.length === 0) {
     interview_questions.push(
       "1. Em hãy chia sẻ về dự án tiêu biểu nhất mà em từng tham gia?",
@@ -644,6 +566,7 @@ function parseJsonResult(raw: string): CVAnalysisResult {
       score: skillsScore,
       matched: skillsMatched,
       missing: skillsMissing,
+      must_have_gaps: mustHaveGaps,
       details: skillsDetails,
     },
     experience_analysis: {
@@ -676,7 +599,7 @@ function shouldFallbackToGroq(): boolean {
   return Boolean(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim().length > 0);
 }
 
-// ─── Provider 1: Gemini 2.5 Flash (Text-First with PDF inlineData fallback) ──
+// ─── Provider 1: Gemini 3.1 Flash Lite (Text-First with PDF inlineData fallback) ──
 
 async function analyzeWithGemini(
   pdfBuffer: Buffer,
@@ -706,7 +629,7 @@ async function analyzeWithGemini(
       ];
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite",
     contents,
     config: {
       responseMimeType: "application/json",
@@ -775,11 +698,11 @@ export async function analyzeCVWithGemini(
   let result: CVAnalysisResult;
 
   try {
-    console.log(`[AI] Đang phân tích "${fileName}" với Gemini 2.5 Flash...`);
+    console.log(`[AI] Đang phân tích "${fileName}" với Gemini 3.1 Flash Lite...`);
     result = await analyzeWithGemini(pdfBuffer, fileName, jdText, pdfText, detectedContact);
     console.log(`[AI] ✅ Gemini phân tích thành công cho "${fileName}"`);
-  } catch (geminiErr: any) {
-    const geminiErrMsg = geminiErr?.message || String(geminiErr);
+  } catch (geminiErr: unknown) {
+    const geminiErrMsg = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
     console.warn(`[AI] ⚠️  Gemini gặp lỗi khi phân tích "${fileName}": ${geminiErrMsg}`);
 
     if (shouldFallbackToGroq()) {
@@ -789,8 +712,8 @@ export async function analyzeCVWithGemini(
       try {
         result = await analyzeWithGroq(pdfBuffer, fileName, jdText, pdfText, detectedContact);
         console.log(`[AI] ✅ Groq phân tích thành công cho "${fileName}"`);
-      } catch (groqErr: any) {
-        const groqErrMsg = groqErr?.message || String(groqErr);
+      } catch (groqErr: unknown) {
+        const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
         console.error(`[AI] ❌ Groq cũng thất bại cho "${fileName}":`, groqErrMsg);
         throw new Error(
           `Cả Gemini lẫn Groq đều thất bại.\nGemini: ${geminiErrMsg}\nGroq: ${groqErrMsg}`
