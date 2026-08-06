@@ -18,6 +18,8 @@ import { CVAnalysisResult } from "@/lib/gemini";
 import { AnalysisResultView } from "@/components/AnalysisResultView";
 import { saveAnalysis, exportAnalysesToCSV, StoredAnalysis } from "@/lib/localStorage";
 import { exportAnalysesToExcel } from "@/lib/excelExport";
+import { SkillSelector } from "@/components/SkillSelector";
+import { SkillConfig } from "@/lib/types/skill";
 
 const SAMPLE_JD = `Vị trí: Senior Frontend Developer
 Địa điểm: TP. Hồ Chí Minh (Hybrid)
@@ -44,6 +46,7 @@ export default function SingleAnalyzePage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CVAnalysisResult | null>(null);
   const [savedToHistory, setSavedToHistory] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState<SkillConfig | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -82,6 +85,9 @@ export default function SingleAnalyzePage() {
       const formData = new FormData();
       formData.append("cv", file);
       formData.append("jd", jd);
+      if (selectedSkill) {
+        formData.append("skillConfig", JSON.stringify(selectedSkill));
+      }
 
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -144,6 +150,9 @@ export default function SingleAnalyzePage() {
 
       {/* Form Section */}
       <form onSubmit={handleSubmit} className="space-y-6 glass-panel p-6 sm:p-8 rounded-2xl border border-stone-200">
+        {/* Step 0: Skill Preset Selection */}
+        <SkillSelector selectedSkill={selectedSkill} onSkillChange={setSelectedSkill} />
+
         {/* Step 1: File Upload */}
         <div className="space-y-2">
           <label className="block text-sm font-semibold text-stone-800">

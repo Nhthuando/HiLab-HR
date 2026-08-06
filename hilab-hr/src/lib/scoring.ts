@@ -26,13 +26,34 @@ export function normalizeScore(value: unknown, fallback = 0): number {
   return Math.round(Math.max(0, Math.min(100, numeric)));
 }
 
-export function calculateOverallScore(scores: ScoreComponents): number {
-  return Math.round(
-    normalizeScore(scores.skills) * 0.35 +
-      normalizeScore(scores.experience) * 0.30 +
-      normalizeScore(scores.education) * 0.20 +
-      normalizeScore(scores.language) * 0.15
-  );
+export interface SkillWeightsInput {
+  skills: number;
+  experience: number;
+  education: number;
+  language: number;
+}
+
+export function calculateOverallScore(
+  scores: ScoreComponents,
+  weights?: SkillWeightsInput
+): number {
+  const sk = normalizeScore(scores.skills);
+  const ex = normalizeScore(scores.experience);
+  const ed = normalizeScore(scores.education);
+  const la = normalizeScore(scores.language);
+
+  if (weights) {
+    const total = (weights.skills || 0) + (weights.experience || 0) + (weights.education || 0) + (weights.language || 0);
+    if (total > 0) {
+      const wSkills = weights.skills / total;
+      const wExp = weights.experience / total;
+      const wEdu = weights.education / total;
+      const wLang = weights.language / total;
+      return Math.round(sk * wSkills + ex * wExp + ed * wEdu + la * wLang);
+    }
+  }
+
+  return Math.round(sk * 0.35 + ex * 0.30 + ed * 0.20 + la * 0.15);
 }
 
 export function classifyScore(score: number): Classification {

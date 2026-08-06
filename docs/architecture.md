@@ -1,102 +1,45 @@
-# Architecture Overview — HiLab-HR
-
-Tài liệu kiến trúc tổng quan hệ thống **HiLab-HR (AI-Powered CV Screening System)**.
-
----
+# HiLab-HR System Architecture Overview
 
 ## 1. High-Level Architecture
 
-Hệ thống được thiết kế theo kiến trúc 2 sản phẩm song song:
-1. **Antigravity / Claude Skill (`hr-cv-screening`)**: Chạy trực tiếp trong IDE dành cho Developer & Technical Reviewer.
-2. **Next.js Fullstack Web App (`hilab-hr`)**: Chạy trên trình duyệt dành cho bộ phận HR Non-tech.
-
 ```mermaid
 graph TD
-    subgraph "Clients / Interfaces"
-        IDE["IDE / Antigravity Agent Chat"]
-        WebUI["Web Application (Next.js 15 UI)"]
+    User["Người dùng Tuyển dụng (HR / Recruiter)"]
+    
+    subgraph Frontend ["Next.js 15 App Router Frontend"]
+        Nav["Navbar Navigation"]
+        PageStudio["Skill Studio (/skills)"]
+        PageSingle["Phân tích đơn (/analyze)"]
+        PageBatch["Phân tích Batch (/analyze/batch)"]
+        PageHistory["Lịch sử (/history)"]
     end
 
-    subgraph "Skill Engine"
-        SkillSpec[".agents/skills/hr-cv-screening/SKILL.md"]
-        PyScript["scripts/analyze_cv.py"]
+    subgraph API ["Next.js API Layer"]
+        API_AICopilot["/api/skills/ai-edit\n(Gemini 3.1 Flash Lite)"]
+        API_Analyze["/api/analyze & /api/analyze/batch\n(PDF Parse + Gemini Scoring)"]
     end
 
-    subgraph "Web App Backend (Next.js API Routes)"
-        Auth["NextAuth.js (Google OAuth)"]
-        AnalyzeRoute["/api/analyze & /api/analyze/batch"]
-        AnalysesRoute["/api/analyses & export"]
-        JDRoute["/api/job-descriptions"]
+    subgraph CoreEngine ["Dynamic Skill & AI Engine"]
+        SkillFiles["Skill Files: .agents/skills/hr-cv-screening/"]
+        DynamicPrompt["Dynamic Prompt & Weights Builder"]
+        LocalStorageState["Browser LocalStorage"]
+        NeonDB[("Neon PostgreSQL via Prisma")]
     end
 
-    subgraph "External & Infrastructure Services"
-        GeminiAPI["Google Gemini API (gemini-3.1-flash-lite)"]
-        NeonDB[("Neon Serverless PostgreSQL")]
-        PrismaORM["Prisma ORM"]
-    end
+    User --> Nav
+    Nav --> PageStudio & PageSingle & PageBatch & PageHistory
 
-    %% Client Interactions
-    IDE --> SkillSpec
-    SkillSpec --> PyScript
-    PyScript --> GeminiAPI
-
-    WebUI --> Auth
-    WebUI --> AnalyzeRoute
-    WebUI --> AnalysesRoute
-    WebUI --> JDRoute
-
-    AnalyzeRoute --> GeminiAPI
-    AnalyzeRoute --> PrismaORM
-    AnalysesRoute --> PrismaORM
-    JDRoute --> PrismaORM
-    PrismaORM --> NeonDB
+    PageStudio <-->|Chat & Refine Skill| API_AICopilot
+    PageStudio <--> LocalStorageState
+    
+    PageSingle & PageBatch -->|Gửi CV + JD + SkillConfig| API_Analyze
+    API_Analyze --> DynamicPrompt
+    DynamicPrompt -.-> SkillFiles
 ```
 
----
-
-## 2. Component Architecture
-
-### 2.1 Skill Architecture (`.agents/skills/hr-cv-screening/`)
-- **`SKILL.md`**: Định nghĩa metadata (name, description), quy trình tự động đọc PDF, nạp JD, và kích hoạt script Python.
-- **`scripts/analyze_cv.py`**: Sử dụng `google-genai` Python SDK để gửi PDF binary + Prompt JD tới Gemini API, áp dụng Structured Outputs để trả kết quả JSON.
-- **`resources/scoring_rubric.md`**: Bộ quy tắc & tiêu chí chấm điểm chuẩn (Kỹ năng 35%, Kinh nghiệm 30%, Học vấn 20%, Ngôn ngữ 15%).
-
-### 2.2 Web Application Architecture (`hilab-hr/`)
-- **Frontend (React 19 + Next.js 15 App Router)**: UI hiện đại Dark Mode Glassmorphism, Shadcn/UI, Tailwind CSS v4, Lucide Icons.
-- **API Handlers (`app/api/`)**: Handle file upload (`FormData`), gửi request tới Gemini, lưu vết và truy vấn cơ sở dữ liệu.
-- **Data Access Layer**: Prisma Client kết nối Neon PostgreSQL dạng Serverless Connection Pool.
-- **Authentication**: NextAuth.js v5 hỗ trợ Google OAuth 2.0, bảo mật API routes & protected pages.
-
----
-
-## 3. Data Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor HR as HR Manager / User
-    participant UI as Next.js Web UI
-    participant API as Next.js API Route (/api/analyze)
-    participant Gemini as Gemini 3.1 Flash Lite API
-    participant DB as Neon PostgreSQL (Prisma)
-
-    HR->>UI: Upload CV (PDF) + Nhập/Chọn JD
-    UI->>API: POST /api/analyze (FormData: file, jdText)
-    API->>API: Validate Session (NextAuth) & Read File Buffer
-    API->>Gemini: generateContent (PDF Buffer + System Prompt + Response Schema)
-    Gemini-->>API: JSON Structured Analysis Result
-    API->>DB: Save Analysis record & JobDescription to PostgreSQL
-    DB-->>API: Saved Record
-    API-->>UI: Response JSON (Scores, Strengths, Weaknesses, Questions)
-    UI-->>HR: Render Gauge Charts, Badges, Visual Breakdown
-```
-
----
-
-## 4. Key Security & Operational Principles
-
-1. **Server-Side API Key Protection**: `GEMINI_API_KEY` chỉ lưu tại server-side (Next.js API route / `.env`), không bao giờ leak xuống Client UI.
-2. **Stateless CV Processing**: CV PDF gốc chỉ được nạp tạm vào bộ nhớ RAM (Buffer) phục vụ phân tích API, không cần lưu trữ vĩnh viễn trên Server Disk/S3, bảo vệ thông tin cá nhân ứng viên (GDPR/Privacy compliant).
-3. **Structured AI Outputs**: Ép kiểu dữ liệu Gemini API bằng Pydantic / JSON Schema nhằm đảm bảo 100% kết quả trả về đúng định dạng, không vỡ UI.
-4. **Deterministic Ranking**: Server tự tính tổng điểm từ 4 điểm thành phần và tự suy ra classification; model chỉ cung cấp bằng chứng, điểm từng mục và `must_have_gaps`.
-5. **Quota Guard**: Prompt dùng compact scoring rules, giới hạn JD 8.000 ký tự và CV text 16.000 ký tự; PDF scan mới dùng inline PDF data.
+## 2. Core Components
+- **Framework**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS v4, Glassmorphism design system
+- **AI Core**: Google Gemini 3.1 Flash Lite (`@google/genai`)
+- **PDF Extraction**: `pdf-parse`
+- **Excel/Data Export**: `exceljs`

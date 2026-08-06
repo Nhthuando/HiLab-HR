@@ -1,6 +1,8 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import Groq from "groq-sdk";
 import { calculateOverallScore, classifyScore, normalizeScore } from "./scoring";
+import { SkillConfig, SkillWeights } from "./types/skill";
+import { DEFAULT_HR_SKILL } from "./defaultSkill";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -58,19 +60,19 @@ const analysisSchema: Schema = {
         matched: {
           type: Type.ARRAY,
           items: { type: Type.STRING },
-          description: "Danh sách kỹ năng khớp với JD"
+          description: "Danh sách kỹ năng và công nghệ khớp với JD (kèm chi tiết nếu có)"
         },
         missing: {
           type: Type.ARRAY,
           items: { type: Type.STRING },
-          description: "Danh sách kỹ năng thiếu so với JD"
+          description: "Danh sách kỹ năng và công nghệ thiếu so với JD"
         },
         must_have_gaps: {
           type: Type.ARRAY,
           items: { type: Type.STRING },
-          description: "Danh sách yêu cầu bắt buộc trong JD mà CV chưa có bằng chứng"
+          description: "Danh sách yêu cầu bắt buộc trong JD mà CV chưa có bằng chứng thực tế"
         },
-        details: { type: Type.STRING, description: "Nhận xét chi tiết về kỹ năng" }
+        details: { type: Type.STRING, description: "Nhận xét chi tiết 2-4 câu: Nêu cụ thể công nghệ/kỹ năng ứng viên ĐÃ LÀM (kèm dự án/bằng chứng trích từ CV), thiếu chính xác những công nghệ nào trong JD và đánh giá mức độ ảnh hưởng." }
       },
       required: ["score", "matched", "missing", "must_have_gaps", "details"]
     },
@@ -78,9 +80,9 @@ const analysisSchema: Schema = {
       type: Type.OBJECT,
       properties: {
         score: { type: Type.INTEGER, description: "Điểm kinh nghiệm 0-100" },
-        years_total: { type: Type.NUMBER, description: "Tổng số năm kinh nghiệm" },
-        years_relevant: { type: Type.NUMBER, description: "Số năm kinh nghiệm liên quan" },
-        details: { type: Type.STRING, description: "Nhận xét chi tiết về kinh nghiệm" }
+        years_total: { type: Type.NUMBER, description: "Tổng số năm kinh nghiệm làm việc" },
+        years_relevant: { type: Type.NUMBER, description: "Số năm kinh nghiệm trực tiếp liên quan đến vị trí" },
+        details: { type: Type.STRING, description: "Nhận xét chi tiết 2-4 câu: Phân tích số năm, các công ty/vị trí từng làm, quy mô dự án thực tế (traffic, MAU, team size, kiến trúc) và so sánh cụ thể với yêu cầu của JD." }
       },
       required: ["score", "years_total", "years_relevant", "details"]
     },
@@ -88,7 +90,7 @@ const analysisSchema: Schema = {
       type: Type.OBJECT,
       properties: {
         score: { type: Type.INTEGER, description: "Điểm học vấn 0-100" },
-        details: { type: Type.STRING, description: "Nhận xét chi tiết về học vấn" }
+        details: { type: Type.STRING, description: "Nhận xét chi tiết 2-3 câu: Nêu rõ chuyên ngành, trường đại học, GPA/xếp loại và các chứng chỉ chuyên môn quốc tế (AWS, CBAP, PMP...) hoặc khoảng cách so với yêu cầu." }
       },
       required: ["score", "details"]
     },
@@ -96,26 +98,26 @@ const analysisSchema: Schema = {
       type: Type.OBJECT,
       properties: {
         score: { type: Type.INTEGER, description: "Điểm ngôn ngữ 0-100" },
-        details: { type: Type.STRING, description: "Nhận xét chi tiết về ngôn ngữ" }
+        details: { type: Type.STRING, description: "Nhận xét chi tiết 2-3 câu: Nêu rõ chứng chỉ ngoại ngữ (TOEIC/IELTS/JLPT...), khả năng giao tiếp kỹ thuật và làm việc với tài liệu chuyên ngành so với đòi hỏi của JD." }
       },
       required: ["score", "details"]
     },
     strengths: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "Danh sách điểm mạnh của ứng viên"
+      description: "Danh sách 3-5 điểm mạnh nổi bật cụ thể của ứng viên (có dẫn chứng công nghệ, thành tích hoặc dự án cụ thể)"
     },
     weaknesses: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "Danh sách điểm yếu của ứng viên"
+      description: "Danh sách 3-5 điểm yếu hoặc rủi ro cụ thể của ứng viên (nêu rõ kỹ năng thiếu, số năm chưa đủ hoặc khoảng trống kinh nghiệm)"
     },
     interview_questions: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "Danh sách câu hỏi phỏng vấn gợi ý"
+      description: "Danh sách 4-5 câu hỏi phỏng vấn kỹ thuật và tình huống thực tế (Case Study) xoáy sâu vào các lỗ hổng và kinh nghiệm thực chiến của ứng viên"
     },
-    summary: { type: Type.STRING, description: "Tóm tắt đánh giá tổng thể" }
+    summary: { type: Type.STRING, description: "Tóm tắt đánh giá toàn diện 3-5 câu: (1) Đánh giá tổng quan độ tương thích, (2) Điểm sáng nổi bật nhất kèm bằng chứng, (3) Rủi ro/khoảng trống lớn nhất cần kiểm chứng, (4) Khuyến nghị quyết định tuyển dụng rõ ràng." }
   },
   required: [
     "candidate_name", "candidate_email", "candidate_phone", "overall_score", "classification",
@@ -126,72 +128,93 @@ const analysisSchema: Schema = {
 };
 
 // ─── PDF text & contact extractor ──────────────────────────────────────────
-// This version of pdf-parse exports a `PDFParse` class (not a function).
-// We instantiate it with { data: Uint8Array } then call load() + getText().
-// Using createRequire so the CJS module is loaded correctly from ESM context.
 
 export async function extractPdfText(pdfBuffer: Buffer): Promise<string> {
-  const { createRequire } = await import("module");
-  const req = createRequire(import.meta.url);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mod = req("pdf-parse") as any;
+  try {
+    const { createRequire } = await import("module");
+    const req = createRequire(import.meta.url);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mod = req("pdf-parse") as any;
 
-  // pdf-parse v2+ exports a named class: { PDFParse: class }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const PDFParseClass: (new (opts: { data: Uint8Array }) => any) | undefined =
-    mod?.PDFParse ?? mod?.default?.PDFParse;
+    // pdf-parse v2+ class interface
+    const PDFParseClass = mod?.PDFParse ?? mod?.default?.PDFParse;
+    if (typeof PDFParseClass === "function") {
+      const parser = new PDFParseClass({ data: new Uint8Array(pdfBuffer) });
+      await parser.load();
+      const res = await parser.getText();
+      if (typeof res === "string") return res;
+      if (res && typeof res.text === "string") return res.text;
+      if (res && typeof res.getText === "function") {
+        const nested = await res.getText();
+        if (typeof nested === "string") return nested;
+      }
+      if (res && typeof res === "object") {
+        if (Array.isArray(res.pages)) {
+          return res.pages
+            .map((p: any) => (typeof p === "string" ? p : p?.text || ""))
+            .filter(Boolean)
+            .join("\n");
+        }
+        return Object.values(res)
+          .filter((v): v is string => typeof v === "string")
+          .join("\n");
+      }
+    }
 
-  if (PDFParseClass) {
-    const instance = new PDFParseClass({ data: new Uint8Array(pdfBuffer) });
-    await instance.load();
-    const textResult = await instance.getText();
-    // getText() may return string directly or { text: string }
-    if (typeof textResult === "string") return textResult;
-    if (textResult?.text) return textResult.text;
+    // Fallback: legacy functional interface
+    const parseFn =
+      typeof mod === "function"
+        ? mod
+        : typeof mod?.default === "function"
+        ? mod.default
+        : undefined;
+
+    if (parseFn) {
+      const data = await parseFn(pdfBuffer);
+      if (typeof data === "string") return data;
+      if (data && typeof data.text === "string") return data.text;
+    }
+  } catch (err) {
+    console.warn("[PDF] extractPdfText warning:", err);
   }
 
-  // Fallback: legacy pdf-parse v1 exports the parse fn directly
-  const parseFn: ((buf: Buffer) => Promise<{ text: string }>) | undefined =
-    typeof mod === "function" ? mod :
-    typeof mod.default === "function" ? mod.default :
-    undefined;
-
-  if (parseFn) {
-    const result = await parseFn(pdfBuffer);
-    return result.text;
-  }
-
-  throw new Error("pdf-parse: không thể load module hoặc API không tương thích.");
+  return "";
 }
 
-/**
- * Deterministically extract email and phone number from text using regex
- */
-export function extractContactInfoFromText(text: string): { email: string; phone: string } {
+export function extractContactInfoFromText(rawText: unknown): { email: string; phone: string } {
   let email = "";
   let phone = "";
+  if (!rawText) return { email, phone };
 
-  if (!text) return { email, phone };
+  const str =
+    typeof rawText === "string"
+      ? rawText
+      : typeof (rawText as any)?.text === "string"
+      ? (rawText as any).text
+      : String(rawText || "");
 
-  // Email regex
-  const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i;
-  const emailMatch = text.match(emailRegex);
+  if (!str || typeof str.replace !== "function") return { email, phone };
+
+  const clean = str
+    .replace(/[^\x20-\x7E\s\u00C0-\u024F\u1EA0-\u1EF9]/g, " ")
+    .replace(/\s+/g, " ");
+
+  const EMAIL_REGEX = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
+  const PHONE_REGEX = /(?:\+84|0084|0)[1-9][0-9]{7,9}\b/;
+
+  const emailMatch = clean.match(EMAIL_REGEX);
   if (emailMatch) {
-    email = emailMatch[1].trim();
+    const candidate = emailMatch[0].trim();
+    if (!candidate.endsWith(".png") && !candidate.endsWith(".jpg") && !candidate.includes("example.com")) {
+      email = candidate;
+    }
   }
 
-  // Vietnamese phone format with prefix 03, 05, 07, 08, 09, +84, 84
-  // Handles spaces, dots, dashes e.g. "0385 591 447", "0365472162", "+84 385 591 447", "0385.591.447"
-  const vnPhoneRegex = /(?:(?:\+84|84|0)\s*(?:3|5|7|8|9)\d)(?:[\s.-]?\d){7}\b/;
-  const vnMatch = text.match(vnPhoneRegex);
-  if (vnMatch) {
-    phone = vnMatch[0].trim();
-  } else {
-    // General international or landline phone fallback
-    const generalPhoneRegex = /(?:(?:\+84|0084|0)[\s.-]?[1-9](?:[\s.-]?\d){7,10})\b/;
-    const generalMatch = text.match(generalPhoneRegex);
-    if (generalMatch) {
-      phone = generalMatch[0].trim();
+  const phoneMatch = clean.match(PHONE_REGEX);
+  if (phoneMatch) {
+    const digitsOnly = phoneMatch[0].replace(/\D/g, "");
+    if (digitsOnly.length >= 9 && digitsOnly.length <= 12) {
+      phone = phoneMatch[0].trim();
     }
   }
 
@@ -200,14 +223,13 @@ export function extractContactInfoFromText(text: string): { email: string; phone
 
 // ─── Shared prompt builder ─────────────────────────────────────────────────
 
-// ─── Shared prompt builder (Gemini) ─────────────────────────────────────────
-
 const MAX_JD_CHARS = 8_000;
 const MAX_CV_TEXT_CHARS = 16_000;
 const MAX_LIST_ITEMS = 12;
 
-function compactText(text: string, maxChars: number): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
+function compactText(text: unknown, maxChars: number): string {
+  const safeText = typeof text === "string" ? text : typeof (text as any)?.text === "string" ? (text as any).text : "";
+  const normalized = safeText.replace(/\s+/g, " ").trim();
   if (normalized.length <= maxChars) return normalized;
 
   const marker = " ... [đã rút gọn để tiết kiệm quota] ... ";
@@ -217,24 +239,34 @@ function compactText(text: string, maxChars: number): string {
   return `${normalized.slice(0, headLength)}${marker}${normalized.slice(-tailLength)}`;
 }
 
-const COMPACT_SCORING_RULES = `
-Quy tắc đánh giá:
-- Chỉ dùng bằng chứng có trong JD và CV; không suy diễn chỉ vì thấy từ khóa liên quan.
-- Tách yêu cầu JD thành must-have (bắt buộc) và preferred (ưu tiên).
-- Chấm riêng 4 mục theo thang 0-100: kỹ năng 35%, kinh nghiệm 30%, học vấn 20%, ngôn ngữ 15%.
-- Bằng chứng trực tiếp tốt hơn bằng chứng chuyển đổi; không có bằng chứng cho một yêu cầu thì không được coi là đã đáp ứng.
-- Thiếu must-have làm giảm mạnh điểm mục liên quan nhưng không loại cứng ứng viên.
-- Ứng dụng sẽ tự tính overall_score và classification từ 4 điểm thành phần; không tự bịa hoặc ưu tiên tổng điểm.
-- Chỉ trả tối đa 12 matched, 12 missing, 12 must_have_gaps, 5 strengths, 5 weaknesses và 5 interview_questions.
-- Viết nhận xét và summary ngắn gọn, bằng tiếng Việt, có căn cứ từ CV.
+function buildScoringRules(weights?: SkillWeights): string {
+  const w = weights || DEFAULT_HR_SKILL.weights;
+  return `
+Quy tắc đánh giá & nhận xét chuyên sâu (BẮT BUỘC TUÂN THỦ):
+1. BẮT BUỘC tuân thủ các thang điểm 0-100 và quy tắc phân loại trong [Bộ tiêu chí đánh giá chi tiết (Scoring Rubric)].
+2. ĐÁNH GIÁ CỤ THỂ, CÓ DẪN CHỨNG (TUYỆT ĐỐI KHÔNG VIẾT CHUNG CHUNG HOẶC 1 CÂU SƠ SÀI):
+   - 'skills_analysis.details': Phải viết 2-4 câu đầy đủ. Nêu rõ ứng viên đã làm việc với những công nghệ/kỹ năng nào (trích dẫn dự án/kinh nghiệm thực tế trong CV), thiếu chính xác những công nghệ/kỹ năng nào theo JD (ví dụ: Next.js, TypeScript, SQL, Docker...) và đánh giá mức độ rủi ro đối với dự án.
+   - 'experience_analysis.details': Phải viết 2-4 câu đầy đủ. Nêu rõ tổng số năm kinh nghiệm, các công ty/vị trí từng làm, quy mô dự án thực tế (traffic, MAU, team size, kiến trúc) và so sánh cụ thể số năm kinh nghiệm liên quan với yêu cầu tối thiểu của JD.
+   - 'education_analysis.details': Phải viết 2-3 câu đầy đủ. Nêu rõ chuyên ngành tốt nghiệp, trường đại học, kết quả học tập (GPA/xếp loại), các chứng chỉ nghề nghiệp quốc tế (AWS, CBAP, PMP, Scrum...) hoặc đối chiếu khoảng cách so với yêu cầu.
+   - 'language_analysis.details': Phải viết 2-3 câu đầy đủ. Nêu rõ trình độ ngoại ngữ (điểm số chứng chỉ TOEIC/IELTS/JLPT hoặc mức độ sử dụng thực tế), khả năng giao tiếp và đọc hiểu tài liệu chuyên ngành so với đòi hỏi của JD.
+   - 'summary': Viết bản tóm tắt phân tích chuyên sâu 3-5 câu gồm: (1) Đánh giá tổng quan độ tương thích, (2) Điểm sáng nổi bật nhất kèm bằng chứng, (3) Rủi ro/khoảng trống lớn nhất cần kiểm chứng, (4) Khuyến nghị quyết định tuyển dụng rõ ràng (Mời phỏng vấn / Phỏng vấn kiểm tra kỹ năng thiếu / Không phù hợp).
+3. PHÂN TÁCH RẠCH RÒI YÊU CẦU JD:
+   - Must-Have (bắt buộc): Thiếu bất kỳ tiêu chí nào sẽ làm giảm mạnh điểm và BẮT BUỘC liệt kê trong must_have_gaps.
+   - Preferred (điểm cộng): Giúp nâng điểm lên mức Xuất sắc (90-100).
+4. Trọng số chấm điểm 4 mục: Kỹ năng (${w.skills}%), Kinh nghiệm (${w.experience}%), Học vấn (${w.education}%), Ngôn ngữ (${w.language}%).
+5. 'strengths' & 'weaknesses': Mỗi mục có 3-5 gạch đầu dòng cụ thể, trích dẫn rõ công nghệ/kỹ năng/thành tích thực tế, không dùng câu sáo rỗng.
+6. 'interview_questions': Đưa ra 4-5 câu hỏi phỏng vấn chuyên sâu hoặc câu hỏi tình huống (Case Study) xoáy sâu vào các lỗ hổng kỹ thuật và kinh nghiệm thực chiến của ứng viên.
 `;
+}
 
 function buildPrompt(
   jdText: string,
   fileName: string,
   detectedContact?: { email?: string; phone?: string },
-  cvText?: string
+  cvText?: string,
+  skillConfig?: SkillConfig
 ): string {
+  const skill = skillConfig || DEFAULT_HR_SKILL;
   const hints: string[] = [];
   if (detectedContact?.email) hints.push(`Email: ${detectedContact.email}`);
   if (detectedContact?.phone) hints.push(`SĐT: ${detectedContact.phone}`);
@@ -249,16 +281,21 @@ function buildPrompt(
       ? `\n## Nội dung CV trích xuất từ file (${fileName}):\n${boundedCvText}\n`
       : `\n(Đọc kỹ toàn bộ nội dung từ file đính kèm: ${fileName})\n`;
 
-  return `Bạn là chuyên gia tuyển dụng HR. Hãy sàng lọc CV theo JD.
+  const scoringRules = buildScoringRules(skill.weights);
+  const rubricSection = skill.scoringRubric
+    ? `\n## Bộ tiêu chuẩn đánh giá chi tiết (Scoring Rubric - Bắt buộc áp dụng):\n${compactText(skill.scoringRubric, 4000)}\n`
+    : "";
+
+  return `${skill.roleInstructions || "Bạn là Chuyên gia Tuyển dụng AI (Senior Technical Recruiter & HR Screening Architect). Hãy phân tích, đối soát CV dựa trên JD và Scoring Rubric với độ chi tiết cao, minh bạch và có dẫn chứng cụ thể."}
 
 ## Job Description (JD):
 ${boundedJd}
-
-${COMPACT_SCORING_RULES}
+${rubricSection}
+${scoringRules}
 ${cvContentBlock}
-## Trích xuất và output:
+## Yêu cầu trích xuất & đầu ra:
 - Đọc header để lấy candidate_name, candidate_email và candidate_phone; nếu không có thì trả chuỗi rỗng.${contactHint}
-- Trả score và details cho đủ 4 mục; ghi rõ matched, missing và must_have_gaps.
+- Nhận xét từng mục phải CHI TIẾT, CỤ THỂ, CÓ DẪN CHỨNG (không viết 1 câu chung chung).
 - Trả JSON đúng schema, không markdown và không giải thích ngoài JSON.`;
 }
 
@@ -268,8 +305,10 @@ function buildGroqPrompt(
   jdText: string,
   fileName: string,
   cvText: string,
-  detectedContact?: { email?: string; phone?: string }
+  detectedContact?: { email?: string; phone?: string },
+  skillConfig?: SkillConfig
 ): { system: string; user: string } {
+  const skill = skillConfig || DEFAULT_HR_SKILL;
   const hints: string[] = [];
   if (detectedContact?.email) hints.push(`Email: ${detectedContact.email}`);
   if (detectedContact?.phone) hints.push(`SĐT: ${detectedContact.phone}`);
@@ -279,12 +318,18 @@ function buildGroqPrompt(
 
   const boundedJd = compactText(jdText, MAX_JD_CHARS);
   const boundedCvText = compactText(cvText, MAX_CV_TEXT_CHARS);
-  const system = `Bạn là chuyên gia tuyển dụng HR. Trả về đúng một object JSON, không markdown và không giải thích ngoài JSON.
-Các field bắt buộc: candidate_name, candidate_email, candidate_phone, overall_score, classification, skills_analysis, experience_analysis, education_analysis, language_analysis, strengths, weaknesses, interview_questions, summary.
-skills_analysis phải có score, matched, missing, must_have_gaps và details. experience_analysis phải có score, years_total, years_relevant và details. education_analysis và language_analysis phải có score và details.
-${COMPACT_SCORING_RULES}`;
+  const scoringRules = buildScoringRules(skill.weights);
+  const rubricSection = skill.scoringRubric
+    ? `\n## Tiêu chuẩn Scoring Rubric:\n${compactText(skill.scoringRubric, 2500)}\n`
+    : "";
 
-  const user = `## JD\n${boundedJd}\n\n## CV (${fileName})${contactHint}\n${boundedCvText}\n\nTrích xuất chính xác thông tin liên hệ nếu có. Phân tích đủ 4 mục. Trả lời bằng tiếng Việt.`;
+  const system = `${skill.roleInstructions || "Bạn là Chuyên gia Tuyển dụng AI (Senior Technical Recruiter & HR Screening Architect)."} BẮT BUỘC áp dụng thang điểm Scoring Rubric và nhận xét CHI TIẾT, CỤ THỂ, CÓ DẪN CHỨNG BẰNG CHỨNG THỰC TẾ (không viết 1 câu chung chung). Trả về đúng một object JSON, không markdown và không giải thích ngoài JSON.
+Các field bắt buộc: candidate_name, candidate_email, candidate_phone, overall_score, classification, skills_analysis, experience_analysis, education_analysis, language_analysis, strengths, weaknesses, interview_questions, summary.
+skills_analysis phải có score, matched, missing, must_have_gaps và details (nhận xét chi tiết 2-4 câu). experience_analysis phải có score, years_total, years_relevant và details (nhận xét chi tiết 2-4 câu). education_analysis và language_analysis phải có score và details.
+${scoringRules}
+${rubricSection}`;
+
+  const user = `## JD\n${boundedJd}\n\n## CV (${fileName})${contactHint}\n${boundedCvText}\n\nTrích xuất chính xác thông tin liên hệ nếu có. Chấm điểm 4 mục theo đúng Scoring Rubric. Trả lời bằng tiếng Việt.`;
 
   return { system, user };
 }
@@ -351,7 +396,7 @@ function parseDetailsString(obj: any, defaultText: string): string {
   return defaultText;
 }
 
-function parseJsonResult(raw: string): CVAnalysisResult {
+function parseJsonResult(raw: string, customWeights?: SkillWeights): CVAnalysisResult {
   const clean = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let parsed: any;
@@ -501,7 +546,7 @@ function parseJsonResult(raw: string): CVAnalysisResult {
     experience: expScore,
     education: eduScore,
     language: langScore,
-  });
+  }, customWeights);
   const classification = classifyScore(score);
 
   // 6. Candidate info & Lists
@@ -606,18 +651,20 @@ async function analyzeWithGemini(
   fileName: string,
   jdText: string,
   pdfText?: string,
-  detectedContact?: { email?: string; phone?: string }
+  detectedContact?: { email?: string; phone?: string },
+  skillConfig?: SkillConfig
 ): Promise<CVAnalysisResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY chưa được thiết lập.");
 
   const ai = new GoogleGenAI({ apiKey });
-  const hasGoodText = Boolean(pdfText && pdfText.trim().length >= 60);
+  const safePdfText = typeof pdfText === "string" ? pdfText : "";
+  const hasGoodText = Boolean(safePdfText && safePdfText.trim().length >= 60);
 
   // Quota optimization: Use compact text prompt if text extracted cleanly (saves 60-80% tokens).
   // Fall back to PDF inlineData only for scanned/image PDFs (<60 characters).
   const contents = hasGoodText
-    ? [{ text: buildPrompt(jdText, fileName, detectedContact, pdfText) }]
+    ? [{ text: buildPrompt(jdText, fileName, detectedContact, safePdfText, skillConfig) }]
     : [
         {
           inlineData: {
@@ -625,7 +672,7 @@ async function analyzeWithGemini(
             data: pdfBuffer.toString("base64"),
           },
         },
-        { text: buildPrompt(jdText, fileName, detectedContact) },
+        { text: buildPrompt(jdText, fileName, detectedContact, undefined, skillConfig) },
       ];
 
   const response = await ai.models.generateContent({
@@ -639,7 +686,7 @@ async function analyzeWithGemini(
   });
 
   if (!response.text) throw new Error("Không nhận được phản hồi từ Gemini API.");
-  return parseJsonResult(response.text);
+  return parseJsonResult(response.text, skillConfig?.weights);
 }
 
 // ─── Provider 2: Groq llama-3.3-70b (text-only, PDF parsed first) ─────────
@@ -649,16 +696,18 @@ async function analyzeWithGroq(
   fileName: string,
   jdText: string,
   pdfText?: string,
-  detectedContact?: { email?: string; phone?: string }
+  detectedContact?: { email?: string; phone?: string },
+  skillConfig?: SkillConfig
 ): Promise<CVAnalysisResult> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY chưa được thiết lập.");
 
   // Extract text from PDF if not already provided
-  const cvText = pdfText || (await extractPdfText(pdfBuffer));
+  const rawCvText = pdfText || (await extractPdfText(pdfBuffer));
+  const cvText = typeof rawCvText === "string" ? rawCvText : "";
 
   const groq = new Groq({ apiKey });
-  const { system, user } = buildGroqPrompt(jdText, fileName, cvText, detectedContact);
+  const { system, user } = buildGroqPrompt(jdText, fileName, cvText, detectedContact, skillConfig);
 
   const completion = await groq.chat.completions.create({
     model: "llama-3.3-70b-versatile",
@@ -675,7 +724,7 @@ async function analyzeWithGroq(
 
   const raw = completion.choices[0]?.message?.content;
   if (!raw) throw new Error("Không nhận được phản hồi từ Groq API.");
-  return parseJsonResult(raw);
+  return parseJsonResult(raw, skillConfig?.weights);
 }
 
 // ─── Public API: Gemini first, fallback to Groq ───────────────────────────
@@ -683,23 +732,26 @@ async function analyzeWithGroq(
 export async function analyzeCVWithGemini(
   pdfBuffer: Buffer,
   fileName: string,
-  jdText: string
+  jdText: string,
+  skillConfig?: SkillConfig
 ): Promise<CVAnalysisResult> {
   // 1. Pre-extract contact info (email, phone) deterministically from PDF text
   let pdfText = "";
   let detectedContact: { email: string; phone: string } = { email: "", phone: "" };
   try {
-    pdfText = await extractPdfText(pdfBuffer);
+    const rawPdfText = await extractPdfText(pdfBuffer);
+    pdfText = typeof rawPdfText === "string" ? rawPdfText : "";
     detectedContact = extractContactInfoFromText(pdfText);
   } catch (err) {
     console.warn(`[PDF] Không thể trích xuất text sơ bộ từ "${fileName}":`, err);
+    pdfText = "";
   }
 
   let result: CVAnalysisResult;
 
   try {
-    console.log(`[AI] Đang phân tích "${fileName}" với Gemini 3.1 Flash Lite...`);
-    result = await analyzeWithGemini(pdfBuffer, fileName, jdText, pdfText, detectedContact);
+    console.log(`[AI] Đang phân tích "${fileName}" với Gemini 3.1 Flash Lite (Skill: ${skillConfig?.name || "Default"})...`);
+    result = await analyzeWithGemini(pdfBuffer, fileName, jdText, pdfText, detectedContact, skillConfig);
     console.log(`[AI] ✅ Gemini phân tích thành công cho "${fileName}"`);
   } catch (geminiErr: unknown) {
     const geminiErrMsg = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
@@ -710,7 +762,7 @@ export async function analyzeCVWithGemini(
         `[AI] 🔄 Kích hoạt fallback sang Groq (llama-3.3-70b-versatile) cho "${fileName}"...`
       );
       try {
-        result = await analyzeWithGroq(pdfBuffer, fileName, jdText, pdfText, detectedContact);
+        result = await analyzeWithGroq(pdfBuffer, fileName, jdText, pdfText, detectedContact, skillConfig);
         console.log(`[AI] ✅ Groq phân tích thành công cho "${fileName}"`);
       } catch (groqErr: unknown) {
         const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);

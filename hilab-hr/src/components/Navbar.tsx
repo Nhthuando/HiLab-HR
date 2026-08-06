@@ -16,6 +16,7 @@ export function Navbar() {
   const navLinks = [
     { href: "/analyze", label: "Phân tích đơn", icon: FileSearch },
     { href: "/analyze/batch", label: "Phân tích Batch", icon: Files },
+    { href: "/skills", label: "Bộ Skills HR", icon: Sparkles },
     { href: "/history", label: "Lịch sử", icon: History },
   ];
 

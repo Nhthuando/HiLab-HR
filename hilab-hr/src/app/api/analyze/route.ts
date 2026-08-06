@@ -7,6 +7,16 @@ export async function POST(req: NextRequest) {
     const cvFile = formData.get("cv") as File | null;
     const jdText = formData.get("jd") as string | null;
 
+    const skillConfigRaw = formData.get("skillConfig") as string | null;
+    let skillConfig = undefined;
+    if (skillConfigRaw) {
+      try {
+        skillConfig = JSON.parse(skillConfigRaw);
+      } catch (err) {
+        console.warn("Failed to parse custom skillConfig:", err);
+      }
+    }
+
     if (!cvFile) {
       return NextResponse.json({ error: "Vui lòng chọn file CV (PDF)." }, { status: 400 });
     }
@@ -23,7 +33,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
 
     // Analyze with Gemini (stateless — no DB write)
-    const result = await analyzeCVWithGemini(buffer, cvFile.name, jdText);
+    const result = await analyzeCVWithGemini(buffer, cvFile.name, jdText, skillConfig);
 
     return NextResponse.json({
       success: true,

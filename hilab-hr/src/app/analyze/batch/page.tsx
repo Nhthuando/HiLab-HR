@@ -21,6 +21,8 @@ import { CVAnalysisResult } from "@/lib/gemini";
 import { AnalysisResultView } from "@/components/AnalysisResultView";
 import { saveAnalysis, exportAnalysesToCSV, getAnalyses, StoredAnalysis } from "@/lib/localStorage";
 import { exportAnalysesToExcel } from "@/lib/excelExport";
+import { SkillSelector } from "@/components/SkillSelector";
+import { SkillConfig } from "@/lib/types/skill";
 
 const SAMPLE_JD = `Vị trí: Senior Frontend Developer
 Yêu cầu: React.js, Next.js, TypeScript, Tailwind CSS, REST API, > 3 năm kinh nghiệm. Tiếng Anh khá.`;
@@ -33,6 +35,7 @@ export default function BatchAnalyzePage() {
   const [results, setResults] = useState<Array<CVAnalysisResult & { cvFileName: string }>>([]);
   const [savedEntries, setSavedEntries] = useState<StoredAnalysis[]>([]);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<SkillConfig | null>(null);
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -79,6 +82,9 @@ export default function BatchAnalyzePage() {
       const formData = new FormData();
       files.forEach((f) => formData.append("cvs", f));
       formData.append("jd", jd);
+      if (selectedSkill) {
+        formData.append("skillConfig", JSON.stringify(selectedSkill));
+      }
 
       const res = await fetch("/api/analyze/batch", {
         method: "POST",
@@ -167,6 +173,9 @@ export default function BatchAnalyzePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 glass-panel p-6 sm:p-8 rounded-2xl border border-stone-200">
+        {/* Step 0: Skill Preset Selection */}
+        <SkillSelector selectedSkill={selectedSkill} onSkillChange={setSelectedSkill} />
+
         {/* Step 1: Upload multiple files */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-stone-800">

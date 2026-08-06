@@ -77,6 +77,7 @@ export function AnalysisResultView({ result }: Props) {
       icon: Wrench,
       score: typeof skills.score === "number" ? skills.score : 0,
       details: skills.details || "Chưa có nhận xét chi tiết",
+      badge: `${(skills.matched || []).length} kỹ năng khớp • ${(skills.missing || []).length} thiếu`,
       color: "bg-indigo-500",
     },
     {
@@ -84,6 +85,9 @@ export function AnalysisResultView({ result }: Props) {
       icon: Briefcase,
       score: typeof experience.score === "number" ? experience.score : 0,
       details: experience.details || "Chưa có nhận xét chi tiết",
+      badge: experience.years_total > 0 || experience.years_relevant > 0
+        ? `Tổng: ${experience.years_total || 0} năm (Liên quan: ${experience.years_relevant || 0} năm)`
+        : undefined,
       color: "bg-purple-500",
     },
     {
@@ -184,9 +188,9 @@ export function AnalysisResultView({ result }: Props) {
               <FileText className="w-4 h-4 text-indigo-600" />
               Tóm Tắt Đánh Giá
             </h3>
-            <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200">
-              {result?.summary || "Không có tóm tắt đánh giá."}
-            </p>
+            <div className="text-sm text-stone-800 leading-relaxed bg-indigo-50/30 p-4 rounded-xl border border-indigo-100/80">
+              <p className="whitespace-pre-line">{result?.summary || "Không có tóm tắt đánh giá."}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -196,15 +200,22 @@ export function AnalysisResultView({ result }: Props) {
         {categories.map((cat) => {
           const Icon = cat.icon;
           return (
-            <div key={cat.label} className="glass-card rounded-xl p-5 space-y-3 border border-stone-200">
+            <div key={cat.label} className="glass-card rounded-xl p-5 space-y-3 border border-stone-200 hover:border-indigo-200 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
                     <Icon className="w-4 h-4" />
                   </div>
-                  <span className="font-semibold text-sm text-stone-900">{cat.label}</span>
+                  <div>
+                    <span className="font-semibold text-sm text-stone-900">{cat.label}</span>
+                    {cat.badge && (
+                      <span className="block text-[11px] font-medium text-stone-500">
+                        {cat.badge}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <span className="text-sm font-bold text-indigo-400">{cat.score}/100</span>
+                <span className="text-sm font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">{cat.score}/100</span>
               </div>
 
               {/* Progress bar */}
@@ -215,7 +226,9 @@ export function AnalysisResultView({ result }: Props) {
                 />
               </div>
 
-              <p className="text-xs text-stone-500 leading-relaxed">{cat.details}</p>
+              <div className="text-xs text-stone-700 leading-relaxed pt-1">
+                <p className="whitespace-pre-line">{cat.details}</p>
+              </div>
             </div>
           );
         })}
