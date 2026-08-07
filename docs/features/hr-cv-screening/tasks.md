@@ -24,3 +24,11 @@
   - [x] `5.1` Verify AI chat editing, weight auto-balancing, and preset switching
   - [x] `5.2` Verify Single & Batch CV analysis with customized skills
   - [x] `5.3` Run `npm run build` and ensure zero errors
+
+- [x] **Phase 6: Responsive & Accessible UI Remediation**
+  - [x] `6.1` Add accessible mobile navigation dropdown to Navbar
+  - [x] `6.2` Name screening file inputs and Skill selectors programmatically
+  - [x] `6.3` Make Skill Studio header responsive and name audited controls
+  - [x] `6.4` Introduce shared keyboard-safe modal dialog behaviour
+  - [x] `6.5` Correct audited contrast and heading-level defects
+  - [x] `6.6` Verify 375px, desktop, axe and production build regression cases

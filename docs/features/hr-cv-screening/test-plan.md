@@ -21,3 +21,15 @@
 ### TC-05: Build Verification
 - **Action**: Run `npm run build`.
 - **Expected**: Compiles cleanly with zero type errors.
+
+### TC-06: Mobile Navigation
+- **Action**: At 375px, open the Navbar dropdown on `/`, `/analyze`, `/analyze/batch`, `/skills`, and `/history`.
+- **Expected**: All four primary destinations are reachable. Escape closes the dropdown, and selecting a route closes it.
+
+### TC-07: Skill Studio Modal Keyboard Flow
+- **Action**: Open Create, Delete, and Reset dialogs. Navigate by Tab and Shift+Tab, then close each dialog with Escape.
+- **Expected**: Focus enters the dialog, never reaches page controls while it is open, cycles within the dialog, and returns to the original launcher after closing.
+
+### TC-08: Accessibility Regression
+- **Action**: Run axe on `/`, `/analyze`, `/analyze/batch`, `/skills`, and `/history` at 375px and desktop width.
+- **Expected**: There are no `button-name`, `label`, `select-name`, `heading-order`, or audited `color-contrast` violations.

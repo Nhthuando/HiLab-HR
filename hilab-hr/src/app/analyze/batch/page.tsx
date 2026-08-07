@@ -178,12 +178,13 @@ export default function BatchAnalyzePage() {
 
         {/* Step 1: Upload multiple files */}
         <div className="space-y-3">
-          <label className="block text-sm font-semibold text-stone-800">
+          <label htmlFor="batch-cv-files" className="block text-sm font-semibold text-stone-800">
             1. Upload danh sách CVs (PDF) <span className="text-rose-400">*</span>
           </label>
 
           <div className="relative border-2 border-dashed border-stone-300 hover:border-violet-300 rounded-xl p-6 text-center cursor-pointer transition-colors bg-stone-50/80">
             <input
+              id="batch-cv-files"
               type="file"
               multiple
               accept=".pdf"

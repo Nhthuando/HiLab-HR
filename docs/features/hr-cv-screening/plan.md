@@ -19,3 +19,8 @@
 ### ADR-03: Hybrid Storage Strategy
 - **Context**: Support both unauthenticated/local browser users and persistent database users seamlessly.
 - **Decision**: Store custom presets in `localStorage` with export/sync options to Neon PostgreSQL (Prisma).
+
+### ADR-04: Shared Accessible UI Primitives
+- **Context**: Mobile navigation was unavailable below the desktop breakpoint, and Skill Studio dialogs did not contain keyboard focus. Repeating event and ARIA logic inside each flow would create inconsistent interaction behaviour.
+- **Decision**: Keep the existing React/Tailwind design system and add local client-side primitives: Navbar owns the mobile dropdown state, while `ModalDialog` owns dialog semantics, focus containment, Escape handling, and focus restoration for all Skill Studio modals.
+- **Consequences**: No dependency or API change is required. Future modal flows use the same keyboard contract, and responsive/accessibility fixes remain isolated from Skill persistence and AI logic.

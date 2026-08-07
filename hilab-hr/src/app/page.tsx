@@ -105,8 +105,8 @@ export default function HomePage() {
             </p>
 
             <div className="bg-stone-100 p-3.5 rounded-xl border border-stone-200 text-[11px] font-mono text-stone-700 space-y-1">
-              <div className="text-stone-500"># Chạy script Python từ Agent:</div>
-              <div className="text-indigo-300">python analyze_cv.py --cv candidate.pdf --jd jd.md</div>
+              <div className="text-stone-600"># Chạy script Python từ Agent:</div>
+              <div className="text-indigo-700">python analyze_cv.py --cv candidate.pdf --jd jd.md</div>
             </div>
           </div>
 

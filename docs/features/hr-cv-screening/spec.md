@@ -26,6 +26,13 @@
 - Trang `/analyze` (Phân tích đơn) và `/analyze/batch` (Phân tích Batch) có Dropdown chọn Bộ Skill áp dụng.
 - Backend `/api/analyze` và `/api/analyze/batch` kết hợp JD, CV và bộ Skill được chọn để gửi tới Gemini và tính điểm theo trọng số tùy biến.
 
+### FR-5: Responsive & Accessible Interaction
+- Ở viewport nhỏ hơn `md`, Navbar hiển thị nút mở dropdown điều hướng ngay bên dưới header; người dùng có thể mở, đóng bằng Escape và truy cập tất cả các route chính bằng bàn phím.
+- Trang `/skills` không được cắt nội dung header hoặc preset selector ở viewport rộng 375px.
+- Các file input, Skill selector, weight controls và button chỉ có icon phải có accessible name tiếng Việt thông qua `label`, `htmlFor` hoặc `aria-label`.
+- Các modal Tạo, Xóa và Khôi phục preset phải dùng `role="dialog"`, giữ focus trong modal, trả focus về trigger khi đóng và hỗ trợ Escape.
+- Các text đã được audit phải đạt độ tương phản WCAG AA cho normal text; cấu trúc heading không được nhảy cấp.
+
 ---
 
 ## 2. API Endpoints Contract

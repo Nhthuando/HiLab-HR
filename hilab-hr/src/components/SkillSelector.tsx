@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import Link from "next/link";
 import { Sparkles, Sliders, ExternalLink, ChevronDown } from "lucide-react";
 import { SkillConfig } from "@/lib/types/skill";
@@ -13,6 +13,7 @@ interface SkillSelectorProps {
 }
 
 export function SkillSelector({ onSkillChange, selectedSkill }: SkillSelectorProps) {
+  const skillSelectId = useId();
   const [presets, setPresets] = useState<SkillConfig[]>([DEFAULT_HR_SKILL]);
   const [currentSkill, setCurrentSkill] = useState<SkillConfig>(selectedSkill || DEFAULT_HR_SKILL);
 
@@ -50,7 +51,7 @@ export function SkillSelector({ onSkillChange, selectedSkill }: SkillSelectorPro
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-stone-900">Bộ Skill / Tiêu chí áp dụng</label>
+              <label htmlFor={skillSelectId} className="text-xs font-bold text-stone-900">Bộ Skill / Tiêu chí áp dụng</label>
               {currentSkill.isDefault && (
                 <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-stone-200/80 text-stone-700">
                   Chuẩn gốc
@@ -59,6 +60,7 @@ export function SkillSelector({ onSkillChange, selectedSkill }: SkillSelectorPro
             </div>
             <div className="relative mt-1">
               <select
+                id={skillSelectId}
                 value={currentSkill.id}
                 onChange={handleChange}
                 className="w-full text-xs font-semibold text-indigo-900 bg-white border border-indigo-200 rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-2xs appearance-none"

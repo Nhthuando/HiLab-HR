@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -7,11 +8,15 @@ import {
   FileSearch,
   Files,
   History,
-  Bot
+  Bot,
+  Menu,
+  X,
 } from "lucide-react";
 
 export function Navbar() {
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuId = "primary-navigation-mobile";
 
   const navLinks = [
     { href: "/analyze", label: "Phân tích đơn", icon: FileSearch },
@@ -19,6 +24,17 @@ export function Navbar() {
     { href: "/skills", label: "Bộ Skills HR", icon: Sparkles },
     { href: "/history", label: "Lịch sử", icon: History },
   ];
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 glass-panel border-b border-stone-200/80">
@@ -37,7 +53,7 @@ export function Navbar() {
         </Link>
 
         {/* Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav aria-label="Điều hướng chính" className="hidden md:flex items-center gap-1">
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive =
@@ -48,6 +64,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
                   ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
                   : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/80"
@@ -60,14 +77,59 @@ export function Navbar() {
           })}
         </nav>
 
-        {/* Right: status badge */}
+        {/* Right: status badge and mobile navigation */}
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>AI Screening System</span>
           </div>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 shadow-xs transition-colors hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 md:hidden"
+            aria-label={isMobileMenuOpen ? "Đóng điều hướng chính" : "Mở điều hướng chính"}
+            aria-controls={mobileMenuId}
+            aria-expanded={isMobileMenuOpen}
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+          >
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
+
+      {isMobileMenuOpen && (
+        <nav
+          id={mobileMenuId}
+          aria-label="Điều hướng chính"
+          className="border-t border-stone-200/80 bg-white/95 p-3 shadow-lg backdrop-blur-md md:hidden"
+        >
+          <div className="mx-auto grid max-w-7xl gap-1 px-1">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive =
+                link.href === "/analyze"
+                  ? pathname === "/analyze"
+                  : pathname === link.href || pathname.startsWith(link.href + "/");
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "border border-indigo-200 bg-indigo-50 text-indigo-700"
+                      : "text-stone-600 hover:bg-stone-100/80 hover:text-stone-900"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

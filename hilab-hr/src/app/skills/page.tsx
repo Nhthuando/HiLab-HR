@@ -37,6 +37,7 @@ import {
   getActivePresetId,
   setActivePresetId,
 } from "@/lib/skillStorage";
+import { ModalDialog } from "@/components/ModalDialog";
 
 const QUICK_SUGGESTIONS = [
   "Tạo bộ tiêu chí Senior Fullstack React/Node.js (5+ năm kinh nghiệm)",
@@ -62,6 +63,9 @@ export default function SkillStudioPage() {
   const [newSkillDesc, setNewSkillDesc] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const createNameInputRef = useRef<HTMLInputElement>(null);
+  const deleteCancelButtonRef = useRef<HTMLButtonElement>(null);
+  const resetCancelButtonRef = useRef<HTMLButtonElement>(null);
 
   // Toast Notification State
   const [toastNotification, setToastNotification] = useState<{
@@ -329,13 +333,13 @@ export default function SkillStudioPage() {
     <div className="min-h-[calc(100vh-4rem)] bg-stone-50/50 pb-12">
       {/* Top Header & Toolbar */}
       <div className="sticky top-16 z-40 bg-white/80 backdrop-blur-md border-b border-stone-200/80 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           {/* Left: Title & Preset Selector */}
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-500/20 text-white">
               <Sparkles className="w-5 h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-bold text-stone-900 leading-none">HR Skill Studio</h1>
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -346,11 +350,13 @@ export default function SkillStudioPage() {
             </div>
 
             {/* Preset Selector Dropdown */}
-            <div className="ml-2 pl-4 border-l border-stone-200 flex items-center gap-2">
+            <div className="w-full min-w-0 sm:ml-2 sm:w-auto sm:border-l sm:border-stone-200 sm:pl-4">
+              <label htmlFor="studio-preset" className="sr-only">Bộ tiêu chí đang chỉnh sửa</label>
               <select
+                id="studio-preset"
                 value={activeSkill.id}
                 onChange={(e) => handleSelectPreset(e.target.value)}
-                className="text-sm font-medium text-stone-800 bg-stone-100 hover:bg-stone-200/70 border border-stone-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors cursor-pointer"
+                className="w-full min-w-0 text-sm font-medium text-stone-800 bg-stone-100 hover:bg-stone-200/70 border border-stone-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors cursor-pointer sm:min-w-[270px]"
               >
                 {presets.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -362,7 +368,7 @@ export default function SkillStudioPage() {
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {previousSkill && (
               <button
                 onClick={handleUndo}
@@ -441,10 +447,11 @@ export default function SkillStudioPage() {
           <div className="lg:col-span-7 space-y-4">
             {/* Meta Information Card (Preset Name) */}
             <div className="bg-white rounded-2xl border border-stone-200/80 p-4 shadow-xs">
-              <label className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5">
+              <label htmlFor="skill-name" className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5">
                 Tên bộ tiêu chí (Preset Name)
               </label>
               <input
+                id="skill-name"
                 type="text"
                 value={activeSkill.name}
                 onChange={(e) => {
@@ -558,6 +565,7 @@ export default function SkillStudioPage() {
                       </span>
                       <div className="flex items-center gap-1">
                         <input
+                          aria-label="Nhập trọng số Kỹ năng (phần trăm)"
                           type="number"
                           min="0"
                           max="100"
@@ -569,6 +577,7 @@ export default function SkillStudioPage() {
                       </div>
                     </div>
                     <input
+                      aria-label="Điều chỉnh trọng số Kỹ năng (phần trăm)"
                       type="range"
                       min="0"
                       max="100"
@@ -587,6 +596,7 @@ export default function SkillStudioPage() {
                       </span>
                       <div className="flex items-center gap-1">
                         <input
+                          aria-label="Nhập trọng số Kinh nghiệm (phần trăm)"
                           type="number"
                           min="0"
                           max="100"
@@ -598,6 +608,7 @@ export default function SkillStudioPage() {
                       </div>
                     </div>
                     <input
+                      aria-label="Điều chỉnh trọng số Kinh nghiệm (phần trăm)"
                       type="range"
                       min="0"
                       max="100"
@@ -616,6 +627,7 @@ export default function SkillStudioPage() {
                       </span>
                       <div className="flex items-center gap-1">
                         <input
+                          aria-label="Nhập trọng số Học vấn (phần trăm)"
                           type="number"
                           min="0"
                           max="100"
@@ -627,6 +639,7 @@ export default function SkillStudioPage() {
                       </div>
                     </div>
                     <input
+                      aria-label="Điều chỉnh trọng số Học vấn (phần trăm)"
                       type="range"
                       min="0"
                       max="100"
@@ -645,6 +658,7 @@ export default function SkillStudioPage() {
                       </span>
                       <div className="flex items-center gap-1">
                         <input
+                          aria-label="Nhập trọng số Ngoại ngữ (phần trăm)"
                           type="number"
                           min="0"
                           max="100"
@@ -656,6 +670,7 @@ export default function SkillStudioPage() {
                       </div>
                     </div>
                     <input
+                      aria-label="Điều chỉnh trọng số Ngoại ngữ (phần trăm)"
                       type="range"
                       min="0"
                       max="100"
@@ -751,10 +766,10 @@ export default function SkillStudioPage() {
                   <Bot className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <h2 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
                     AI Skill Co-pilot
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  </h3>
+                  </h2>
                   <p className="text-[10px] text-stone-500 font-mono">Gemini 3.1 Flash Lite</p>
                 </div>
               </div>
@@ -805,7 +820,7 @@ export default function SkillStudioPage() {
                     {msg.timestamp && (
                       <span
                         className={`text-[9px] block mt-1 text-right ${
-                          msg.role === "user" ? "text-indigo-200" : "text-stone-400"
+                          msg.role === "user" ? "text-indigo-100" : "text-stone-600"
                         }`}
                       >
                         {msg.timestamp}
@@ -852,7 +867,9 @@ export default function SkillStudioPage() {
               }}
               className="p-3 bg-white border-t border-stone-200 flex items-center gap-2"
             >
+              <label htmlFor="copilot-message" className="sr-only">Yêu cầu cho AI Skill Co-pilot</label>
               <input
+                id="copilot-message"
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
@@ -863,6 +880,7 @@ export default function SkillStudioPage() {
               <button
                 type="submit"
                 disabled={isAiLoading || !chatInput.trim()}
+                aria-label="Gửi yêu cầu cho AI Skill Co-pilot"
                 className="w-8 h-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white flex items-center justify-center transition-colors shadow-xs shrink-0"
               >
                 {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
@@ -874,8 +892,12 @@ export default function SkillStudioPage() {
 
       {/* ═══════════ MODAL: TẠO BỘ TIÊU CHÍ MỚI ═══════════ */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200/90 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
+        <ModalDialog
+          titleId="create-skill-dialog-title"
+          onClose={() => setIsCreateModalOpen(false)}
+          initialFocusRef={createNameInputRef}
+        >
+          <div>
             {/* Header */}
             <div className="px-5 py-4 bg-gradient-to-r from-indigo-50/80 via-white to-white border-b border-stone-200/80 flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -883,12 +905,13 @@ export default function SkillStudioPage() {
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-stone-900">Tạo Bộ Tiêu Chí Mới</h3>
+                  <h2 id="create-skill-dialog-title" className="text-sm font-bold text-stone-900">Tạo Bộ Tiêu Chí Mới</h2>
                   <p className="text-xs text-stone-500">Thiết lập cấu hình sàng lọc CV riêng biệt</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
+                aria-label="Đóng hộp thoại tạo bộ tiêu chí"
                 className="p-1 text-stone-400 hover:text-stone-700 rounded-lg hover:bg-stone-100 transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -898,12 +921,13 @@ export default function SkillStudioPage() {
             {/* Body Form */}
             <form onSubmit={handleConfirmCreate} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-stone-800 mb-1.5">
+                <label htmlFor="new-skill-name" className="block text-xs font-bold text-stone-800 mb-1.5">
                   Tên bộ tiêu chí <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  ref={createNameInputRef}
+                  id="new-skill-name"
                   type="text"
-                  autoFocus
                   value={newSkillName}
                   onChange={(e) => setNewSkillName(e.target.value)}
                   placeholder="Ví dụ: Tuyển dụng Senior Flutter Developer..."
@@ -912,10 +936,11 @@ export default function SkillStudioPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-800 mb-1.5">
-                  Mô tả mục đích <span className="text-stone-400 font-normal">(Tùy chọn)</span>
+                <label htmlFor="new-skill-description" className="block text-xs font-bold text-stone-800 mb-1.5">
+                  Mô tả mục đích <span className="text-stone-600 font-normal">(Tùy chọn)</span>
                 </label>
                 <input
+                  id="new-skill-description"
                   type="text"
                   value={newSkillDesc}
                   onChange={(e) => setNewSkillDesc(e.target.value)}
@@ -951,25 +976,30 @@ export default function SkillStudioPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalDialog>
       )}
 
       {/* ═══════════ MODAL: XÁC NHẬN XÓA PRESET ═══════════ */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200/90 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
+        <ModalDialog
+          titleId="delete-skill-dialog-title"
+          onClose={() => setIsDeleteModalOpen(false)}
+          initialFocusRef={deleteCancelButtonRef}
+        >
+          <div>
             <div className="px-5 py-4 bg-rose-50/80 border-b border-rose-100 flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs">
                   <Trash2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-rose-950">Xóa Bộ Tiêu Chí</h3>
+                  <h2 id="delete-skill-dialog-title" className="text-sm font-bold text-rose-950">Xóa Bộ Tiêu Chí</h2>
                   <p className="text-xs text-rose-700">Hành động này không thể hoàn tác</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsDeleteModalOpen(false)}
+                aria-label="Đóng hộp thoại xóa bộ tiêu chí"
                 className="p-1 text-rose-400 hover:text-rose-700 rounded-lg hover:bg-rose-100 transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -987,6 +1017,7 @@ export default function SkillStudioPage() {
 
               <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-stone-100">
                 <button
+                  ref={deleteCancelButtonRef}
                   type="button"
                   onClick={() => setIsDeleteModalOpen(false)}
                   className="px-4 py-2 rounded-xl text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-100 transition-colors"
@@ -1004,25 +1035,30 @@ export default function SkillStudioPage() {
               </div>
             </div>
           </div>
-        </div>
+        </ModalDialog>
       )}
 
       {/* ═══════════ MODAL: KHÔI PHỤC VỀ MẶC ĐỊNH ═══════════ */}
       {isResetModalOpen && (
-        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200/90 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
+        <ModalDialog
+          titleId="reset-skill-dialog-title"
+          onClose={() => setIsResetModalOpen(false)}
+          initialFocusRef={resetCancelButtonRef}
+        >
+          <div>
             <div className="px-5 py-4 bg-amber-50/80 border-b border-amber-100 flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs">
                   <RotateCcw className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-amber-950">Khôi Phục Về Mặc Định</h3>
+                  <h2 id="reset-skill-dialog-title" className="text-sm font-bold text-amber-950">Khôi Phục Về Mặc Định</h2>
                   <p className="text-xs text-amber-700">Nội dung chuẩn của hr-cv-screening</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsResetModalOpen(false)}
+                aria-label="Đóng hộp thoại khôi phục bộ tiêu chí"
                 className="p-1 text-amber-400 hover:text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -1040,6 +1076,7 @@ export default function SkillStudioPage() {
 
               <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-stone-100">
                 <button
+                  ref={resetCancelButtonRef}
                   type="button"
                   onClick={() => setIsResetModalOpen(false)}
                   className="px-4 py-2 rounded-xl text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-100 transition-colors"
@@ -1057,7 +1094,7 @@ export default function SkillStudioPage() {
               </div>
             </div>
           </div>
-        </div>
+        </ModalDialog>
       )}
 
       {/* ═══════════ FLOATING TOAST NOTIFICATION ═══════════ */}
@@ -1081,6 +1118,7 @@ export default function SkillStudioPage() {
             <span>{toastNotification.message}</span>
             <button
               onClick={() => setToastNotification(null)}
+              aria-label="Đóng thông báo"
               className="ml-2 p-0.5 text-stone-300 hover:text-white rounded-md transition-colors"
             >
               <X className="w-3.5 h-3.5" />

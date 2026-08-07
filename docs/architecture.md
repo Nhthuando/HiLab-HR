@@ -7,7 +7,8 @@ graph TD
     User["Người dùng Tuyển dụng (HR / Recruiter)"]
     
     subgraph Frontend ["Next.js 15 App Router Frontend"]
-        Nav["Navbar Navigation"]
+        Nav["Navbar + Mobile Navigation"]
+        Modal["Accessible ModalDialog"]
         PageStudio["Skill Studio (/skills)"]
         PageSingle["Phân tích đơn (/analyze)"]
         PageBatch["Phân tích Batch (/analyze/batch)"]
@@ -28,6 +29,8 @@ graph TD
 
     User --> Nav
     Nav --> PageStudio & PageSingle & PageBatch & PageHistory
+
+    PageStudio --> Modal
 
     PageStudio <-->|Chat & Refine Skill| API_AICopilot
     PageStudio <--> LocalStorageState
